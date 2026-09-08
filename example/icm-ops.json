@@ -1,0 +1,24 @@
+{
+  "hot_budgets": {
+    "04-memory/STATE.md": 250,
+    "00-catalog/CATALOG.md": 155,
+    "04-memory/maintenance-log.md": 60
+  },
+  "protected": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "00-catalog/CATALOG.md",
+    "00-catalog/CONVENTIONS.md",
+    "04-memory/STATE.md",
+    "04-memory/ledger/BRIEFING.md",
+    "04-memory/maintenance-log.md"
+  ],
+  "deliverable_markers": [],
+  "frontmatter_exempt": ["CLAUDE.md", "AGENTS.md", "README.md"],
+  "size_target_lines": 200,
+  "historical_dirs": ["04-memory/log/"],
+  "log_dir": "04-memory/log",
+  "ledger_dir": "04-memory/ledger",
+  "decisions_dir": "01-context/decisions",
+  "catalog": "00-catalog/CATALOG.md"
+}

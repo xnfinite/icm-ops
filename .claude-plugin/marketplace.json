@@ -1,0 +1,15 @@
+{
+  "name": "icm-ops",
+  "owner": {
+    "name": "xnfinite",
+    "url": "https://github.com/xnfinite"
+  },
+  "description": "Skills that keep an ICM workspace honest: a ledger that scores the agent's advice, a verifier that checks its work, a maintenance run that keeps the files true.",
+  "plugins": [
+    {
+      "name": "icm-ops",
+      "source": "./",
+      "description": "icm-ledger, icm-verifier, icm-maintain — the operating layer for a workspace built with icm-architect or by hand from the ICM paper."
+    }
+  ]
+}
