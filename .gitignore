@@ -1,4 +1,14 @@
+# private context layer of the maintainer; never ships, never commit it
 .icm/
 node_modules/
 *.log
 .DS_Store
+__pycache__/
+*.pyc
+.venv/
+venv/
+Thumbs.db
+# .bak copies: the maintenance run writes them beside protected files and the
+# checker's truncation guard reads them; they belong to a workspace, never to
+# a commit
+*.bak

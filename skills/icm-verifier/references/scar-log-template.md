@@ -5,11 +5,13 @@ updated: YYYY-MM-DD
 
 # Scar log — every catch that produced or confirmed a rule
 
-Copy this file to your workspace (the catalog decides where; a common home
-is `02-processes/icm-verifier/scar-log.md` or the skill's own
-`references/scar-log.md`) and replace the examples with your own catches.
-Keep the format. Newest first. This file is the proof the discipline is
-lived; it is also what the pre-task briefing reads.
+Copy this file to a workspace path with a catalog row —
+`02-processes/icm-verifier/scar-log.md` unless the catalog says otherwise —
+and replace the examples with your own catches. A copy inside an installed
+skill folder (`.claude/skills/`, `.agents/skills/`) is outside the
+checker's walk and is overwritten by the next reinstall. Keep the format.
+Newest first. This file is the proof the discipline is lived; it is also
+what the pre-task briefing reads.
 
 ## Entry format
 
@@ -25,12 +27,25 @@ One bullet per catch; several catches on one day share a heading. Cite the
 ledger entry (`L-NNN`) when the same event is also a judgment failure — an
 event can appear in both books.
 
-## Example scars — six from one operator's record, anonymized
+## Example scars — 17 catches from one operator's record, anonymized
 
 The dates are real. Platforms, products, and figures are made generic;
 the shape of each failure is untouched, because the shape is the lesson.
 
-## 2026-08-25 — the closed loop catches the ledger itself, within the hour
+## 2026-08-30 — not a face but a cousin: a failed write destroyed state
+
+- **A read-then-rewrite append blanked a day's log.** The write died
+  mid-encode on a non-ASCII character, but the file had already been
+  opened in truncate mode, so it was left empty and the retry re-added its
+  own section alone. Not a false "done" — a tool that fails can still have
+  destroyed state. Caught by the watched-check drill: the post-write byte
+  count was suspiciously small for a multi-section file. Rules: append
+  with an explicit UTF-8 encoding; never round-trip a file through a
+  single failable write; a suspiciously small file after a write is a
+  data-loss signal. Now a convention plus a checker FAIL (protected files
+  that collapse below 40% of their `.bak`), which `icm-maintain` runs.
+
+## 2026-08-25 — the closed loop, absence past the instrument, the agreeable number, and the date scar
 
 - **The accountability system carried a false belief about its own most
   consequential entry for two days.** A ledger entry said "blocked on
@@ -52,9 +67,6 @@ the shape of each failure is untouched, because the shape is the lesson.
   searcher's. No existing drill could catch it because nothing was false
   except the synthesis. Face 7. Produced the reframe drill: name the
   inherited framing, run one search that abandons it.
-
-## 2026-08-25 — absence reported past the instrument, and the agreeable number
-
 - **"The timer isn't there."** A reviewing session declared two scheduled
   tasks nonexistent after querying a registry that, by its own tool
   description, does not list locally stored tasks. The tasks existed on
@@ -77,9 +89,6 @@ the shape of each failure is untouched, because the shape is the lesson.
   definitions (wc-style versus newline-plus-one); at a binding threshold
   with two lines of headroom, off-by-one is real. The checker now owns
   the definition, because it is the tool that fails the build.
-
-## 2026-08-25 — the date scar recurs, caught by machine
-
 - **Tuesday's work written under Sunday's date.** A session spanning three
   calendar days anchored "today" to a clock reading taken on day one; the
   ledger, the self-briefing, the front-desk block, and a readout all
@@ -88,8 +97,8 @@ the shape of each failure is untouched, because the shape is the lesson.
   than a person, which is the skill's own success metric (the catch moved
   earlier). Face 5 cousin: a date is a claim. Rule: in a long-running
   session a prior clock reading is not "now" — re-read the clock before
-  writing any date; the checker prints today's date and the newest log's
-  age at the top of every report so drift is visible on every run.
+  writing any date; the checker prints the clock in its header line and
+  the newest log's age as an INFO line so drift is visible on every run.
 
 ## 2026-08-17 — a marketplace listing build, six catches in one day
 
@@ -142,22 +151,9 @@ the shape of each failure is untouched, because the shape is the lesson.
   covered one guessed directory. Face 4. Produced the negative drill:
   catalog path, then whole-tree search.
 
-## Earlier
+## 2026-07 (day not recorded) — the letterspaced false negative
 
 - **July: the letterspaced false negative.** A substring check reported a
   required footer missing; it was present, letterspaced. The founding
   normalization scar — cited on 2026-08-17 when the same failure mode
   nearly recurred twice in one day.
-
-## Not a face, but a cousin — a failed write destroyed state (2026-08-30)
-
-- **A read-then-rewrite append blanked a day's log.** The write died
-  mid-encode on a non-ASCII character, but the file had already been
-  opened in truncate mode, so it was left empty and the retry re-added its
-  own section alone. Not a false "done" — a tool that fails can still have
-  destroyed state. Caught by the watched-check drill: the post-write byte
-  count was suspiciously small for a multi-section file. Rules: append
-  with an explicit UTF-8 encoding; never round-trip a file through a
-  single failable write; a suspiciously small file after a write is a
-  data-loss signal. Now a convention plus a checker FAIL (protected files
-  that collapse below 40% of their `.bak`), which `icm-maintain` runs.

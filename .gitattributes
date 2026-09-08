@@ -1,0 +1,9 @@
+# Every text file is committed and checked out with LF, on every OS; these
+# attributes override core.autocrlf. Repairing a CRLF clone: CONTRIBUTING.md.
+* text=auto eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.svg text eol=lf
+.editorconfig text eol=lf

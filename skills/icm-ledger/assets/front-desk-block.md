@@ -3,8 +3,9 @@
 Paste into `CLAUDE.md` and `AGENTS.md` (identical text in both) so every
 session is briefed on arrival without deciding to look. Regenerate it in the
 same action as `04-memory/ledger/BRIEFING.md`, from the same readout. Keep
-it to two bullets plus the pointer: the front desk has a binding line
-budget, and this block is the part of it that changes most often.
+it to two bullets plus the pointer: keep the front desk short; give it a
+budget in `icm-ops.json` if it grows, and this block is the part of it
+that changes most often.
 
 ```
 ## Know thyself (computed — arrives with you, updated by ledger readouts)

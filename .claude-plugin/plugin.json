@@ -2,7 +2,7 @@
   "name": "icm-ops",
   "displayName": "icm-ops",
   "description": "Skills that keep an ICM workspace honest: a ledger that scores the agent's advice with falsifiers and outcomes, a verifier that checks claimed work before it is reported, and a maintenance run with binding file budgets.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": {
     "name": "xnfinite",
     "url": "https://github.com/xnfinite"

@@ -38,6 +38,15 @@ carry binding budgets in `icm-ops.json` (STATE 250, CATALOG 155,
 maintenance-log 60): over budget fails the check and the fix is compaction,
 not a bigger budget.
 
+## Catalog rows
+
+A row is `` | `path/from/root` | read when | ``. Several paths in one cell are
+joined by ` / `, each in backticks; folders end in `/`. Paths are relative
+to the root, without `./`, `..` or an absolute prefix, and spelled
+case-exact on every operating system: the checker treats every backticked
+token in that cell as a path and looks it up in the tree it walked. Grammar:
+FORMAT.md in the icm-ops repo, "Catalog rows".
+
 ## Linking
 
 Relative paths, always. `[the ledger](../04-memory/ledger/2026-09.md)` from a

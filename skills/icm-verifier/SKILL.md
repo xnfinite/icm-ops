@@ -4,7 +4,7 @@ description: Verify that claimed work is real before reporting, shipping, or bui
 license: MIT
 metadata:
   author: "xnfinite"
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # icm-verifier
@@ -13,8 +13,8 @@ An AI will sometimes tell you work is done when it is not. Not from malice —
 from summarizing intent instead of observing outcome. Every rule in this
 skill exists because that happened in one operator's workspace and the error
 survived at least one review. The catches are kept in a scar log
-(`references/scar-log-template.md` shows the format and six examples); this
-file is the drill.
+(`references/scar-log-template.md` shows the format with anonymized
+examples); this file is the drill.
 
 **The one law: a claim is not reportable until verified by observation at
 the point where it will be consumed.** Not where it was made — where it will
@@ -23,9 +23,12 @@ be read, rendered, downloaded, or executed.
 This skill operates on an ICM workspace — Interpretable Context Methodology,
 Van Clief & McDermott, arXiv:2603.16021 (https://arxiv.org/abs/2603.16021).
 Build the workspace with their `icm-architect` skill
-(https://github.com/RinDig/icm-architect); this pack is a layer on top of
-the method, not part of it. It does not make an agent correct. It makes
-the agent's claims checkable, and the checks visible.
+(https://github.com/RinDig/icm-architect), or by hand from the paper: a
+front desk (`CLAUDE.md` / `AGENTS.md`), `00-catalog/CATALOG.md`, and dated
+markdown files with frontmatter — the `example/` tree in the icm-ops repo
+is a complete minimal one. This pack is a layer on top of the method, not
+part of it. It does not make an agent correct. It makes the agent's claims
+checkable, and the checks visible.
 
 ## The eight faces of the same lie
 
@@ -171,24 +174,8 @@ numerals on shipping surfaces AND repeated re-verification of byte-identical
 installed copies. Over-checking is spending someone else's time to purchase
 confidence nobody asked for.
 
-## Leverage — fix one rung up, not another check
-
-When a problem RECURS, the reflex is to add another check or another
-budget. That is the weakest kind of fix. Interventions rank weakest to
-strongest: numbers → structure → information → rules → paradigm. Name the
-rung your current fix sits on and design ONE intervention a rung higher —
-the traveling self-briefing is *information* (show a level instead of
-nagging), the review-by clocks are *rules*, the one law is a *paradigm*.
-And watch the limit: every added discipline has a point past which it
-consumes more than it returns. **The immune system must not become the
-disease.**
-
-## Red-team rule
-
-When the taxonomy feels complete, sit down and design the failure that
-would survive every drill above. If you can invent it, it is real, and it
-becomes a face BEFORE it costs anything — face 8 was found exactly this
-way. A taxonomy that grows solely from wounds is always one wound behind.
+Why the drills are shaped this way, and how a new face gets designed
+before it costs anything: `references/design-notes.md`.
 
 ## Report grammar
 
@@ -224,12 +211,16 @@ When handed another session's (or your own earlier) report:
 
 ## Keeping the scar log
 
-Every catch gets one dated line in `references/scar-log.md` inside the
-workspace's own copy of this skill (or wherever the catalog says the scar
-log lives), with the face it wore, how it was caught, and the rule it
-produced or confirmed. Newest first. That file is the evidence the
-discipline is lived, not aspirational — and the raw material for the
-pre-task briefing.
+Every catch gets one dated line in the scar log, with the face it wore, how
+it was caught, and the rule it produced or confirmed. Newest first. The log
+lives at a workspace path with a catalog row —
+`02-processes/icm-verifier/scar-log.md` unless the catalog says otherwise —
+never inside an installed skill folder (`.claude/skills/`,
+`.agents/skills/`): a file there sits outside the checker's walk and is
+overwritten by the next reinstall. Format:
+`references/scar-log-template.md`. The log is the evidence the discipline
+is lived, not aspirational — and the raw material for the pre-task
+briefing.
 
 The measure of this skill working: catches move earlier. A count caught at
 review costs a re-render; caught at publish, a listing; caught by a buyer,
