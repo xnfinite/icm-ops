@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="234" viewBox="0 0 1040 234">
+<rect width="100%%" height="100%%" rx="10" fill="#0f1419"/>
+<text x="18" y="32" font-family="Consolas, Menlo, monospace" font-size="14" fill="#c9d1d9">
+<tspan x="18" dy="0" fill="#9ad1ff">$ python skills/icm-maintain/scripts/icm_check.py example-broken</tspan>
+<tspan x="18" dy="22" fill="#ff6b6b">[FAIL] broken relative link in 04-memory/STATE.md: (../02-processes/does-not-exist.md)</tspan>
+<tspan x="18" dy="22" fill="#ff6b6b">[FAIL] 04-memory/STATE.md: 258 lines — OVER its binding budget of 250. Run the compaction routine.</tspan>
+<tspan x="18" dy="22" fill="#ff6b6b">[FAIL] BRIEFING.md (2026-08-01) is OLDER than the newest ledger readout (2026-09-08) — regenerate it and the front-desk block</tspan>
+<tspan x="18" dy="22" fill="#ffd166">[WARN] no catalog coverage (own row or ancestor folder row): 02-processes/orphan.md</tspan>
+<tspan x="18" dy="22" fill="#ffd166">[WARN] ledger L-003 past its date (2026-08-01) and still open — resolve or mark EXPIRED (2026-09.md)</tspan>
+<tspan x="18" dy="22" fill="#c9d1d9">... 13 INFO lines omitted ...</tspan>
+<tspan x="18" dy="22" fill="#ff6b6b">3 FAIL / 2 WARN / 13 INFO</tspan>
+</text></svg>
