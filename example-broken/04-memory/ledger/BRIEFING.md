@@ -1,13 +1,14 @@
 ---
 type: memory
 updated: 2026-08-01
+readout: 2026-08-01
 ---
 
 # Arrival self-briefing — computed from the ledger, not written by hand
 
 Regenerated with every readout pass (decision 0001). Source: `2026-09.md`,
 readout of 2026-09-08, n=6. Receipts are the linked entries; this file is
-only the correction. The checker fails the build when this file's `updated:`
+only the correction. The checker fails the build when this file's `readout:`
 date is older than the newest readout.
 
 **If you are the builder (working session):** your scored failure class is a

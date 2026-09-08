@@ -16,11 +16,23 @@ them at `skills/<name>/SKILL.md`.
 | `example-broken/` | The same with five seeded defects the checker must name. |
 | `scripts/test.py` | Frontmatter validity per the Agent Skills spec, both examples, the banned-phrase sweep. |
 
+The durable core is the three folders under `skills/` and the one-file
+checker; copying them anywhere that reads a folder is the install route that
+needs nothing else.
+
 ## Before you change anything
 
 1. Run `python scripts/test.py` and watch it end with zero FAIL.
 2. Read the skill you are changing in full; each one is under 250 lines on purpose.
-3. Any number in `README.md` traces to a dated readout or to a command in this repo. Do not invent one.
+3. Any number in `README.md` traces to a dated readout, to a dated count of
+   the operator's ledger, or to a command in this repo. Do not invent one.
+4. Formats are specified in `FORMAT.md`; a change to anything in its Scope
+   and stability section follows `CONTRIBUTING.md` (issue first, deprecation
+   one minor version ahead).
+5. Bump `.claude-plugin/plugin.json`, every `skills/*/SKILL.md`
+   `metadata.version`, `__version__` in
+   `skills/icm-maintain/scripts/icm_check.py` and the CHANGELOG heading
+   together; `scripts/test.py` asserts they match.
 
 ## Rules
 

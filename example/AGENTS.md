@@ -1,7 +1,7 @@
 # Front Desk
 
 You are inside an ICM workspace (Interpretable Context Methodology: folder
-structure as agent architecture; Van Clief and McDermott, arXiv:2603.16021).
+structure as agentic architecture; Van Clief and McDermott, arXiv:2603.16021).
 This file is all you must read on arrival. Everything else is read on demand.
 
 ## The one rule: progressive disclosure

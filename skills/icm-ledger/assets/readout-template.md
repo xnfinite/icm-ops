@@ -11,7 +11,7 @@ correction nobody will receive.
 
 - **<source>, N entries:** N confirmed (L-…), N confirmed-in-scope (L-…),
   N disproven (L-…), N mixed (L-…), N averted (L-…), N expired (L-…),
-  N open. Failure class: <one sentence naming the kind of claim the
+  N moot (L-…), N open. Failure class: <one sentence naming the kind of claim the
   disproven entries share, e.g. "numerals on shipping surfaces asserted
   without the check that was one step away">. Where it was reliable:
   <the kind of claim the confirmed entries share, e.g. "verdicts backed
@@ -29,6 +29,11 @@ correction nobody will receive.
 - Sample sizes are small; these are patterns with receipts, not
   statistics. Next readout when: <the event or date>.
 ```
+
+`MOOT` is counted apart from confirmed and disproven: the question
+dissolved before the falsifier could fire, so the entry scores neither
+way. An entry with no `OUTCOME:` line counts as open and gets flagged in
+the readout by id.
 
 ## COST classes — what being wrong would have cost
 

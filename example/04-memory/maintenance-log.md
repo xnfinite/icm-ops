@@ -5,10 +5,11 @@ updated: 2026-09-08
 
 # Maintenance log — one line per run, newest first
 
-Rule ([the runbook](../02-processes/one-process.md), step 5): keep the 30
-newest run lines; fold older ones into the counter at the bottom. Binding
-budget of 60 lines, enforced by the checker. "Needs owner" items sit at the
-top until a human clears them.
+Rule ([the runbook](../02-processes/one-process.md), step 5): one physical
+line per run where possible; keep as many run lines as fit under the 60-line
+budget; fold the rest into the counter at the bottom. The budget is binding,
+enforced by the checker. "Needs owner" items sit at the top until a human
+clears them.
 
 ## Needs owner
 
@@ -20,7 +21,7 @@ top until a human clears them.
 
 ## Runs
 
-- 2026-09-08 · manual (builder session) · checker 0 FAIL / 0 WARN / 14 INFO
+- 2026-09-08 · manual (builder session) · checker 0 FAIL / 0 WARN / 15 INFO
   -> unchanged · nothing fixed: no authorized-fix category fired. First
   readout written; BRIEFING.md and the front-desk block regenerated in the
   same action. STATE.md at 49/250 (checker-counted). Step 6 (`.bak`

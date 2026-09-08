@@ -25,7 +25,8 @@ checker reports; this process decides what gets fixed.
    to MOVE to a dated log file) under "Proposed compactions" and stop. Apply
    it only with the owner present.
 5. Run the checker again. Append one run line to the maintenance log, newest
-   first: date, trigger, before -> after counts, what was fixed. Keep the 30
-   newest run lines; fold older ones into the counter at the bottom.
+   first: date, trigger, before -> after counts, what was fixed. One physical
+   line per run where possible; keep as many run lines as fit under the
+   60-line budget; fold the rest into the counter at the bottom.
 6. If the run ended with 0 FAIL, copy each protected file to `<file>.bak`
    (the truncation guard's baseline). Never do this after a failing run.
