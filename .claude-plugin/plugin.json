@@ -1,7 +1,7 @@
 {
   "name": "icm-ops",
   "displayName": "icm-ops",
-  "description": "Skills that keep an ICM workspace honest: a ledger that scores the agent's advice with falsifiers and outcomes, a verifier that checks claimed work before it is reported, and a maintenance run with binding file budgets.",
+  "description": "Skills that keep an ICM workspace honest: a ledger that scores the agent's advice with falsifiers and outcomes, a verifier that checks claimed work before it is reported, a maintenance run with binding file budgets, and a mod that runs the checker at the moment of the write.",
   "version": "0.2.0",
   "author": {
     "name": "xnfinite",
@@ -10,6 +10,7 @@
   "homepage": "https://github.com/xnfinite/icm-ops",
   "repository": "https://github.com/xnfinite/icm-ops",
   "license": "MIT",
-  "keywords": ["icm", "agent-skills", "claude-code", "codex", "ledger", "verification", "context-engineering", "workspace-maintenance"],
-  "skills": "./skills"
+  "keywords": ["icm", "agent-skills", "claude-code", "codex", "ledger", "verification", "context-engineering", "workspace-maintenance", "mods"],
+  "skills": "./skills",
+  "types": "./types/index.d.ts"
 }

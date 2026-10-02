@@ -9,7 +9,7 @@
     {
       "name": "icm-ops",
       "source": "./",
-      "description": "icm-ledger, icm-verifier, icm-maintain — the operating layer for a workspace built with icm-architect or by hand from the ICM paper."
+      "description": "icm-ledger, icm-verifier, icm-maintain — the operating layer for a workspace built with icm-architect or by hand from the ICM paper. Includes a mod that runs the checker after each write inside a workspace."
     }
   ]
 }
