@@ -64,6 +64,41 @@ an off-by-one reaches a binding threshold.
 The other install routes copy skills only; a mod needs the plugin route. The
 checker itself runs anywhere Python 3.8 does, with or without it.
 
+### probe-first: the ledger, enforced instead of read
+
+A ledger scores advice and a readout turns the record into a briefing the next
+session reads on arrival. Across the ledgers this pack has seen, one failure
+dominates the working sessions: **a numeral or an absolute put on a shipping
+surface without the one-step-away check.** Count or probe first, then write the
+sentence.
+
+The trouble with a briefing is that it is read at the start and skipped under
+momentum. One session, in the same hour it had re-read its own, wrote "only
+three preview clips exist" where there were fifty, "it is not the files" after
+checking one of five, and took an empty accessibility tree as proof that an
+application had wedged. Advice a session can skim past is not a control.
+
+`probe-first` watches the agent's own replies. When one states an absolute and
+**nothing was run that turn that could have checked it**, the mod appends a row
+the agent reads and the person never sees, naming the phrase and asking for the
+one command that would settle it.
+
+It is deliberately **procedural, not factual**. The same briefings warn that
+self-consistent systems only prove their pipes: a model grading its own claim
+over its own transcript inherits the context that produced the claim, so it
+cannot sort a wrong absolute from a right one. It can answer "did anything run?"
+— and that is the step that gets skipped. So the mod never says you are wrong,
+only that you did not look.
+
+A hedged sentence passes, because a claim marked unverified is already honest.
+One nudge per turn at most. It never blocks and never edits what was said.
+
+Install it on its own; it is independent of the checker mod:
+
+```
+/plugin install probe-first@icm-ops
+```
+
 Read what it does before you trust it, as with any mod:
 
 ```bash
