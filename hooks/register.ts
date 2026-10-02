@@ -12,9 +12,15 @@
  *
  * It never denies. The checker is the authority; this is the doorbell.
  *
- * Quiet by design: a toast only when a write introduces a FAIL or clears one. Steady
- * state says nothing, because a guard that speaks every turn stops being read — the
- * same failure as a build signal that is always red.
+ * It reports to the AGENT, not the person: a workspace is written by the agent walking
+ * it, so the person is not the one who can act on "this write crossed a budget". The
+ * finding goes in the tool result's `context`, which the model reads and the person
+ * never sees. A toast here would interrupt someone about something they did not do.
+ * The status line stays, because a standing FAIL count is worth a glance.
+ *
+ * Quiet by design: it speaks only when a write introduces a FAIL or clears the last
+ * one. Steady state says nothing, because a signal that fires every turn stops being
+ * read — the same failure as a build light that is always red.
  */
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
@@ -67,18 +73,18 @@ async function interpreter($: any): Promise<string | null> {
   return null
 }
 
-async function checkWorkspace($: any, root: string): Promise<void> {
+async function checkWorkspace($: any, root: string): Promise<string | null> {
   const py = await interpreter($)
-  if (!py) return
+  if (!py) return null
   const script = root + '/' + CHECKER
-  if (!(await $.fs.exists(script))) return // the pack is not installed in this workspace
+  if (!(await $.fs.exists(script))) return null // the pack is not installed in this workspace
 
   const { exitCode, stdout } = await $.process.run([py, script, root, '--json'], {
     cwd: root,
     timeoutMs: 30000,
   })
   // The checker exits non-zero when it FAILS, which is a result, not an error.
-  if (!stdout.trim() || (exitCode !== 0 && exitCode !== 1)) return
+  if (!stdout.trim() || (exitCode !== 0 && exitCode !== 1)) return null
 
   const result = JSON.parse(stdout.trim()) as Check
   const before: string[] = (await read($, seen))[root] ?? []
@@ -88,12 +94,18 @@ async function checkWorkspace($: any, root: string): Promise<void> {
   const cleared = before.filter(f => !now.includes(f))
   await update($, seen, s => ({ ...s, [root]: now }))
 
-  if (introduced.length > 0) {
-    $.ui.toast('icm-ops — this write FAILS the checker:\n' + introduced.map(f => '· ' + f).join('\n'))
-  } else if (cleared.length > 0 && now.length === 0) {
-    $.ui.toast('icm-ops — checker clear: 0 FAIL')
-  }
   $.ui.status(now.length > 0 ? `icm ${now.length} FAIL` : undefined)
+
+  if (introduced.length > 0) {
+    return (
+      'icm-ops: this write FAILS the workspace checker.\n' +
+      introduced.map(f => '- ' + f).join('\n') +
+      '\nFix it now — it is cheaper than the compaction it becomes. ' +
+      'Full detail: python ' + CHECKER + ' ' + root
+    )
+  }
+  if (cleared.length > 0 && now.length === 0) return 'icm-ops: workspace checker is clear, 0 FAIL.'
+  return null
 }
 
 export const register: Register = on => {
@@ -107,7 +119,10 @@ export const register: Register = on => {
 
       try {
         const root = await workspaceOf($, file.replace(/\\/g, '/'))
-        if (root) await checkWorkspace($, root)
+        const note = root ? await checkWorkspace($, root) : null
+        // `context` is read by the model after the tool's result and never shown to
+        // the person — the agent is the one who writes here, so the agent is told.
+        if (note) return { ...ran, context: [...(ran.context ?? []), note] }
       } catch {
         // A guard that errors must never look like a workspace that failed.
       }

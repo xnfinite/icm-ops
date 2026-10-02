@@ -22,6 +22,11 @@ ahead of shipping.
   `--json`. A budget owned in two places is how an off-by-one reaches a binding
   threshold.
 
+  The finding goes to the **agent**, on the tool result's `context`, not to the
+  person as a notification. A workspace is written by the agent walking it, so
+  the person is not the one who can act on a crossed budget. Only a standing
+  FAIL count reaches the interface, in the status line.
+
   Claude Code only, and only by the plugin route — the copy and `skills` CLI
   routes install skills, not hooks. The checker is unchanged and still runs on a
   bare interpreter with or without the mod. The mod never blocks a write.
