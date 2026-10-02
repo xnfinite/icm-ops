@@ -10,6 +10,11 @@
       "name": "icm-ops",
       "source": "./",
       "description": "icm-ledger, icm-verifier, icm-maintain — the operating layer for a workspace built with icm-architect or by hand from the ICM paper. Includes a mod that runs the checker after each write inside a workspace."
+    },
+    {
+      "name": "probe-first",
+      "source": "./plugins/probe-first",
+      "description": "A mod that flags an absolute asserted with nothing run to check it — the failure the ledger scores most often. Procedural, never factual; speaks to the agent, never blocks."
     }
   ]
 }

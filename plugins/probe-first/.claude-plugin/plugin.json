@@ -1,0 +1,15 @@
+{
+  "name": "probe-first",
+  "displayName": "probe-first",
+  "description": "Flags an absolute or a hard number asserted with no tool call behind it that turn — the failure the ledger scores most often in working sessions. Procedural, not factual: it never claims you are wrong, only that nothing was run.",
+  "version": "0.1.0",
+  "author": {
+    "name": "xnfinite",
+    "url": "https://github.com/xnfinite"
+  },
+  "homepage": "https://github.com/xnfinite/icm-ops",
+  "repository": "https://github.com/xnfinite/icm-ops",
+  "license": "MIT",
+  "keywords": ["icm", "claude-code", "mods", "verification", "ledger", "agent-discipline"],
+  "types": "./types/index.d.ts"
+}

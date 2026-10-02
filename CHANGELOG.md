@@ -10,6 +10,21 @@ ahead of shipping.
 ## [Unreleased]
 
 ### Added
+- **A second mod, `probe-first`: the ledger enforced instead of read.** It watches
+  the agent's own replies and, when one states an absolute with no tool call behind
+  it that turn, appends a row the agent reads and the person never sees — naming the
+  phrase and asking for the one command that would settle it.
+
+  Deliberately procedural, not factual. A model grading its own claim over its own
+  transcript inherits the context that produced the claim, so it cannot sort a wrong
+  absolute from a right one; it can answer "did anything run?", which is the step the
+  ledgers say gets skipped. The mod never says you are wrong, only that you did not
+  look. Hedged sentences pass. One nudge per turn. It never blocks and never edits
+  what was said.
+
+  Its own plugin (`/plugin install probe-first@icm-ops`), independent of the checker
+  mod, because one hooks module is one plugin.
+
 - **A mod: the checker, at the moment of the write.** `hooks/register.ts` runs
   the shipped `icm_check.py` after a Write, Edit or NotebookEdit inside a
   workspace and reports only what changed — a toast when a write introduces a
