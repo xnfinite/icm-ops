@@ -33,6 +33,41 @@ As observed on 2026-09-08, the `skills` CLI puts a canonical copy in `.agents/sk
 
 Those are the Claude Code plugin commands as of 2026-09-08. They may change; the copy route will not.
 
+## The checker, at the moment of the write (Claude Code only)
+
+`icm_check.py` knows every rule in this pack. What it cannot choose is *when* it
+runs: a session finds out what it broke at the next maintenance pass, by which
+time a one-line fix has become a compaction, and a binding budget crossed on the
+third write of a session is discovered on the thirtieth.
+
+The pack ships a **mod** — a plugin whose code runs inside Claude Code — that
+runs the shipped checker after a write inside a workspace and says only what
+changed. It is installed by the plugin route above; nothing else to do.
+
+It speaks when a write introduces a FAIL, and once more when the last one
+clears. Steady state is silent, because a signal that fires every turn stops
+being read — the same failure as a build light that is always red.
+
+It writes nothing, and it never blocks a write. A rule is a reason to think, not
+a reason to refuse an edit, and the checker stays the authority: the mod runs
+`skills/icm-maintain/scripts/icm_check.py --json` and reports it. There is no
+second checker and no restated rule, because a budget owned in two places is how
+an off-by-one reaches a binding threshold.
+
+The other install routes copy skills only; a mod needs the plugin route. The
+checker itself runs anywhere Python 3.8 does, with or without it.
+
+Read what it does before you trust it, as with any mod:
+
+```bash
+claude plugin validate .
+```
+
+The `hooks:` and `calls:` lines name every event it handles and everything it
+asks the harness to do: `tool.call` on Write, Edit and NotebookEdit, calling
+`$.fs.exists`, `$.process.run`, `$.ui.toast` and `$.ui.status`. A mod runs with
+your permissions and is not sandboxed.
+
 Then run the checker on your workspace once, so you know where you stand:
 
 ```bash

@@ -9,6 +9,23 @@ ahead of shipping.
 
 ## [Unreleased]
 
+### Added
+- **A mod: the checker, at the moment of the write.** `hooks/register.ts` runs
+  the shipped `icm_check.py` after a Write, Edit or NotebookEdit inside a
+  workspace and reports only what changed — a toast when a write introduces a
+  FAIL, one more when the last one clears, and a status-line count while any
+  stand. Steady state is silent. It finds the workspace by walking up for
+  `00-catalog/`, so it serves whichever workspace the file belongs to, and it
+  resolves `python3`, `python` or `py` once per session.
+
+  It adds no rule and no second checker: the mod calls the checker and reads its
+  `--json`. A budget owned in two places is how an off-by-one reaches a binding
+  threshold.
+
+  Claude Code only, and only by the plugin route — the copy and `skills` CLI
+  routes install skills, not hooks. The checker is unchanged and still runs on a
+  bare interpreter with or without the mod. The mod never blocks a write.
+
 ## [0.2.0] - 2026-09-08
 
 Behaviour and formats change, so this is a minor version, not a patch. The
