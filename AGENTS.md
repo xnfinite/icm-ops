@@ -11,10 +11,11 @@ them at `skills/<name>/SKILL.md`.
 |---|---|
 | `skills/icm-ledger/` | Score the agent's own advice: log with a falsifier before recommending, attach outcomes, run readouts, regenerate the "Know thyself" block. |
 | `skills/icm-verifier/` | Check that claimed work is real before reporting it: the one law, the eight faces of a false "done", the drills, the report grammar. |
-| `skills/icm-maintain/` | Keep the files true: `scripts/icm_check.py` (budgets, catalog coverage, links, clocks, staleness), compaction, the scheduled maintenance run. |
+| `skills/icm-maintain/` | Keep the files true: `scripts/icm_check.py` (budgets, catalog coverage, links, clocks, staleness), compaction, the scheduled maintenance run; `scripts/lease.py` and `references/sessions.md` for several sessions on one machine. |
+| `hooks/`, `plugins/` | Claude Code mods: the checker at the moment of the write (`hooks/`), `plugins/probe-first/`, and `plugins/session-leases/` (one session at a time on a shared resource; carries an identical copy of `lease.py`). |
 | `example/` | A minimal ICM workspace the checker passes. Copy it to start. |
 | `example-broken/` | The same with five seeded defects the checker must name. |
-| `scripts/test.py` | Frontmatter validity per the Agent Skills spec, both examples, the banned-phrase sweep. |
+| `scripts/test.py` | Frontmatter validity per the Agent Skills spec, both examples, the banned-phrase sweep, lease.py's behavior. |
 
 The durable core is the three folders under `skills/` and the one-file
 checker; copying them anywhere that reads a folder is the install route that

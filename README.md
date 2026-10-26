@@ -99,6 +99,28 @@ Install it on its own; it is independent of the checker mod:
 /plugin install probe-first@icm-ops
 ```
 
+### session-leases: one session at a time on a shared resource
+
+Several sessions on one machine collide on the machine, not only in files: two
+builds in an editor that takes one client, two pushes of the same branch, one
+session changing the scheduled tasks another depends on. Each is an accident of
+timing the second session cannot see coming.
+
+`skills/icm-maintain/scripts/lease.py` gives each shared resource one owner at a
+time. Taking a lease is an exclusive file create, so two sessions never both
+hold it, and a held lease names its holder and reason so the second session can
+ask. The protocol: `skills/icm-maintain/references/sessions.md`.
+
+The `session-leases` mod puts the lease in front of the action: before a git
+push, a scheduled-task change, a computer-use action or a command named in the
+machine's lease config, it claims the lease for the session and refuses the call
+while another session holds it. It fails open, so a broken coordinator never
+stops work:
+
+```
+/plugin install session-leases@icm-ops
+```
+
 Read what it does before you trust it, as with any mod:
 
 ```bash

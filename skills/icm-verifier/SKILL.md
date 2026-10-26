@@ -119,7 +119,8 @@ external tool reports work): list the workspace's files by modification
 time and diff claimed-against-landed before acting on the report. A
 transcript describing renders is a spec, not a deliverable, until the files
 exist. Two sessions on one workspace reconcile through the filesystem,
-never through each other's summaries.
+never through each other's summaries; on one machine they also take a
+lease before a shared resource (`icm-maintain`, `references/sessions.md`).
 
 **Independent-recheck drill** (face 6): verify with a method the producer
 did not use. A self-asserting packer still gets its archive listed by a

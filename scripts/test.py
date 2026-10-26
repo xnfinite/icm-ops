@@ -52,6 +52,12 @@ exits 1 on any FAIL. What it checks:
   (l) config errors exit 2 with nothing on stdout: an absolute path or a
       `..` segment in a path key, an empty hot_budgets key, an icm-ops.json
       that is a directory.
+  (m) lease.py, in a scratch lease folder: take, refuse another session,
+      renew by the holder's session without losing its name or shortening
+      it, release only by the holder, break and keep an expired lease, log
+      every move, usage errors exit 2, and eight sessions taking at once
+      leave exactly one winner. Its copy in plugins/session-leases/ is
+      byte-identical.
 """
 import contextlib
 import html
@@ -639,6 +645,16 @@ def test_robustness():
                ("STALE ANCHOR" not in out, "a stamp wrapped across a CRLF blank line is not a stamp"),
            ])
 
+    robust(16, "one ledger id on two entries, as two sessions numbering at once",
+           lambda ws: ws.write("04-memory/ledger/2026-10.md",
+                               "---\ntype: memory\nupdated: 2026-10-01\n---\n\n## L-006 · 2026-10-01 · builder\n"
+                               "CLAIM: x\nCONFIDENCE: low\nFALSIFIER: y\nCOST: cheap\nREVIEW-BY: 2026-12-31\nOUTCOME: open\n"),
+           lambda code, out: [
+               (code == 0 and "[WARN] ledger id L-006 used 2 times (2026-09.md, 2026-10.md)" in out,
+                "the reused id is a WARN naming both month files, exit 0"),
+               (out.count("used 2 times") == 1, "reported once, not once per use"),
+           ])
+
     check(json_results and all(json_results),
           f"robustness 14 (--json parses with fail / warn / info in every case): {sum(json_results)}/{len(json_results)}")
 
@@ -649,6 +665,68 @@ def test_robustness():
               f"robustness 15 (extended-length root prefix): stripped and run (exit {code}){stderr_note(err)}")
     finally:
         ws.close()
+
+
+# --- (m) leases --------------------------------------------------------------
+
+LEASE = ROOT / "skills" / "icm-maintain" / "scripts" / "lease.py"
+LEASE_PLUGIN_COPY = ROOT / "plugins" / "session-leases" / "lease.py"
+
+
+def run_lease(lease_dir, *args, session=""):
+    env = dict(os.environ, ICM_LEASE_DIR=str(lease_dir), CLAUDE_CODE_SESSION_ID=session)
+    r = subprocess.run([sys.executable, str(LEASE)] + list(args), capture_output=True, text=True, env=env)
+    return r.returncode, r.stdout + r.stderr
+
+
+def test_lease():
+    if not check(LEASE.is_file(), "lease: skills/icm-maintain/scripts/lease.py present"):
+        return
+    check(LEASE_PLUGIN_COPY.is_file() and LEASE_PLUGIN_COPY.read_bytes() == LEASE.read_bytes(),
+          "lease: plugins/session-leases/lease.py is byte-identical to the skill's copy")
+    with tempfile.TemporaryDirectory(prefix="icm-ops-lease-") as d:
+        def held(name):
+            return json.loads((pathlib.Path(d) / (name + ".json")).read_text(encoding="utf-8"))
+
+        code, _ = run_lease(d, "take", "editor", "--who", "Docs", "--why", "build 80", "--minutes", "90", session="sess-a")
+        check(code == 0, "lease: a free resource is taken (exit 0)")
+        code, out = run_lease(d, "take", "editor", "--who", "Other", "--why", "build 81", session="sess-b")
+        check(code == 1 and out.startswith("HELD:") and "Docs" in out,
+              "lease: another session is refused (exit 1) and told who holds it")
+        before = held("editor")
+        code, out = run_lease(d, "take", "editor", "--why", "auto: build tool", "--minutes", "15", session="sess-a")
+        after = held("editor")
+        check(code == 0 and out.startswith("renewed") and after["who"] == "Docs" and after["why"] == "build 80"
+              and after["expires"] >= before["expires"] and after["since"] == before["since"],
+              "lease: the holder's own auto-claim renews, keeps the name and reason, never shortens")
+        check(run_lease(d, "release", "editor", session="sess-b")[0] == 1,
+              "lease: another session cannot release it")
+        check(run_lease(d, "release", "editor", session="sess-a")[0] == 0 and run_lease(d, "check", "editor")[0] == 0,
+              "lease: the holder releases it, and it reads free")
+        (pathlib.Path(d) / "gpu.json").write_text(json.dumps(
+            {"who": "Gone", "why": "crashed", "since": 0, "expires": 1, "session": "sess-c"}), encoding="utf-8")
+        code, out = run_lease(d, "take", "gpu", "--why", "render", session="sess-b")
+        kept = list((pathlib.Path(d) / "stale").glob("gpu-*.json"))
+        check(code == 0 and "broke an expired lease" in out and len(kept) == 1,
+              "lease: an expired lease is broken by the next taker and kept in stale/")
+        log = (pathlib.Path(d) / "history.log").read_text(encoding="utf-8")
+        check(all(w in log for w in ("TAKE editor", "RENEW editor", "RELEASE editor", "BREAK gpu")),
+              "lease: history.log records take, renew, release and break")
+        check(run_lease(d, "take", "Bad Name", "--who", "x", "--why", "y")[0] == 2
+              and run_lease(d, "take", "gpu", "--who", "x", "--why", "y", "--minutes", "0")[0] == 2
+              and run_lease(d, "take", "gpu", "--why", "y")[0] == 2,
+              "lease: a bad name, bad minutes, or no name and no session is a usage error (exit 2)")
+    with tempfile.TemporaryDirectory(prefix="icm-ops-lease-race-") as d:
+        procs = [subprocess.Popen([sys.executable, str(LEASE), "take", "git-repo", "--why", "push"],
+                                  env=dict(os.environ, ICM_LEASE_DIR=d, CLAUDE_CODE_SESSION_ID="racer-%d" % i),
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                 for i in range(8)]
+        codes = [p.wait() for p in procs]
+        for p in procs:
+            p.stdout.close()
+            p.stderr.close()
+        check(codes.count(0) == 1 and codes.count(1) == 7,
+              f"lease: eight sessions taking at once, exactly one wins (exit codes {sorted(codes)})")
 
 
 # --- (l) config errors exit 2 -----------------------------------------------
@@ -697,6 +775,7 @@ def main():
     test_banned_phrases()
     test_robustness()
     test_config_errors()
+    test_lease()
     print(f"\n{counts['PASS']} PASS / {counts['FAIL']} FAIL / {counts['SKIP']} SKIP")
     return 1 if counts["FAIL"] else 0
 

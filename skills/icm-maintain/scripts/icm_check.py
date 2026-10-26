@@ -24,9 +24,9 @@ Audits the workspace as a system:
       (daily logs, monthly ledgers, deliverables) only ever WARN.
   6.  The catalog against its own line rule.
   7.  Decision records carry `review-by:` dates, and none is due.
-  7b. Ledger entries: ids zero-padded to three digits, the required
-      field lines present, readout headings dated, and no entry past
-      REVIEW-BY / KNOW-BY while still open.
+  7b. Ledger entries: ids zero-padded to three digits and never used
+      twice, the required field lines present, readout headings dated, and
+      no entry past REVIEW-BY / KNOW-BY while still open.
   7c. `checked: DATE . source . stale after: N days` stamps whose window
       has blown.
   7d. BRIEFING.md whose `readout:` date (`updated:` when absent) is
@@ -623,6 +623,7 @@ def run(root, cfg, today):
     # The checker reads an entry's id, its dates, its open marker and
     # whether the required field lines exist. It never judges content.
     newest_readout, readouts = None, 0
+    seen_ids = {}  # (letter, number) -> [(id as written, month file), ...]
     ledgers = glob_files(root, cfg["ledger_dir"], "2???-??.md", add)
     for f in glob_files(root, cfg["ledger_dir"], "*.md", add):
         if f not in ledgers and f.name not in ("BRIEFING.md", "README.md", "_TEMPLATE.md"):
@@ -647,6 +648,7 @@ def run(root, cfg, today):
             if not idm:
                 continue
             ident = idm.group(1)
+            seen_ids.setdefault((ident[0], int(ident[2:])), []).append((ident, f.name))
             if len(ident) < 5:  # the letter, the dash, and at least three digits
                 add("WARN", f"ledger id not zero-padded to three digits: {ident} ({f.name})")
             for field in LEDGER_FIELDS[ident[0]]:
@@ -663,6 +665,13 @@ def run(root, cfg, today):
             elif is_open and d < today:
                 add("WARN", f"ledger {ident} past its date ({d.isoformat()}) and still open "
                             f"— resolve or mark EXPIRED ({f.name})")
+    # An id is never reused (FORMAT.md, Ledger entries). Two sessions writing the ledger at once
+    # can both take the next number; outcomes and readouts cite entries by id, so one id on two
+    # entries silently splits one record into two.
+    for uses in seen_ids.values():
+        if len(uses) > 1:
+            add("WARN", f"ledger id {uses[0][0]} used {len(uses)} times ({', '.join(m for _, m in uses)}) "
+                        "— renumber the later entry and every reference to it")
     if ledger_dir.is_dir():
         if readouts:
             add("INFO", f"readouts found: {readouts} (newest {newest_readout.isoformat()})")

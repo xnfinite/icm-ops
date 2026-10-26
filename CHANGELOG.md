@@ -10,6 +10,33 @@ ahead of shipping.
 ## [Unreleased]
 
 ### Added
+- **More than one session on a machine: leases.** `skills/icm-maintain/scripts/lease.py`
+  gives each shared resource of a machine (the desktop, an editor that takes one client,
+  a branch being pushed, the scheduled tasks) one owner at a time. Taking a lease is an
+  exclusive file create, so two sessions never both hold it; a held lease names its
+  holder and reason, so the second session asks instead of colliding; an expired one is
+  broken by the next taker and kept. Standard library, Python 3.8+, machine-local
+  folder outside any synced tree. The protocol around it, with the collisions that
+  prompted it: `skills/icm-maintain/references/sessions.md`. `icm-maintain`,
+  `icm-ledger` and `icm-verifier` point at it.
+
+- **A third mod, `session-leases`: the lease in front of the action.** Before a git
+  push, a scheduled-task change, a computer-use action or a command named in the
+  machine's `config.json`, it claims the lease for the session and refuses the call
+  while another session holds it, naming the holder. A session's own claims renew
+  instead of colliding; a push's lease is released when the push returns. It fails
+  open: a coordinator that broke must not stop work that a working one would allow.
+  Its own plugin (`/plugin install session-leases@icm-ops`).
+
+- **The checker WARNs on a ledger id used twice** (`[WARN] ledger id L-NNN used N
+  times (<files>)`). FORMAT already said ids are never reused; two sessions writing at
+  once can both take the next number, and outcomes and readouts cite entries by id.
+  A WARN class, so existing files stay valid (`FORMAT.md`, Ledger entries).
+
+- **Tests:** `scripts/test.py` runs lease.py through take, refusal, renewal by the
+  holder's session, release, an expired break and a race of eight sessions with exactly
+  one winner, checks the two copies are identical, and adds a scratch case for the
+  reused-id WARN.
 - **A second mod, `probe-first`: the ledger enforced instead of read.** It watches
   the agent's own replies and, when one states an absolute with no tool call behind
   it that turn, appends a row the agent reads and the person never sees — naming the

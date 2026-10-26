@@ -75,7 +75,9 @@ about small things; with them it can say the sentence that matters:
 - **Ids** are `L-` / `D-` plus at least three digits, zero-padded
   (`L-001`), continuous across months, never reused. The date follows
   `REVIEW-BY:` (and `KNOW-BY:`) immediately; the settling event comes
-  after it.
+  after it. When several sessions write the ledger, take the next id at
+  the moment of writing, in the same edit; the checker WARNs on an id used
+  twice (`icm-maintain`, `references/sessions.md`).
 - **Log before advising, not after.** An entry written after the outcome is
   testimony, not a forecast. Seed entries reconstructed from dated logs are
   the one permitted exception — mark them with the heading suffix

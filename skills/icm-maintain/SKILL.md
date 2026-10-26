@@ -1,6 +1,6 @@
 ---
 name: icm-maintain
-description: Keep an ICM workspace structurally true across sessions — a read-only integrity checker (catalog rows, orphan files, broken links, frontmatter, binding line budgets on hot files, decision review-by clocks, expired ledger entries, stale briefing, stale external-number stamps, date drift, truncation against .bak copies), a bounded maintenance run with an explicit "authorized to fix" list and a "never" list, a five-minute compaction routine for over-budget hot files, and a budgeted maintenance log. Use when (1) starting or ending a session in an ICM workspace ("run the check", "is the workspace clean"); (2) a scheduled or unattended maintenance session runs; (3) the checker FAILs a hot-file budget and something must be compacted; (4) a file was just written and may have been truncated; (5) the owner asks "what needs me", "what drifted", or "why is the catalog out of date"; or (6) setting per-workspace budgets and protected files in icm-ops.json. Detects and stages; a person applies the subtractive fixes.
+description: Keep an ICM workspace structurally true across sessions — a read-only integrity checker (catalog rows, orphan files, broken links, frontmatter, binding line budgets on hot files, decision review-by clocks, expired ledger entries, stale briefing, stale external-number stamps, date drift, truncation against .bak copies), a bounded maintenance run with an explicit "authorized to fix" list and a "never" list, a five-minute compaction routine, and a budgeted maintenance log. Use when (1) starting or ending a session in an ICM workspace ("run the check", "is the workspace clean"); (2) a scheduled or unattended maintenance session runs; (3) the checker FAILs a hot-file budget and something must be compacted; (4) a file was just written and may have been truncated; (5) the owner asks "what needs me" or "what drifted"; (6) setting per-workspace budgets and protected files in icm-ops.json; or (7) more than one session works on one machine (leases). Detects and stages; a person applies the subtractive fixes.
 license: MIT
 metadata:
   author: "xnfinite"
@@ -58,6 +58,7 @@ and never fixes.** Its report is the worklist. It covers:
 | Other file over the size target | WARN / FAIL | Doing two jobs; historical records WARN, working files FAIL. |
 | Decision without `review-by:` / past it | WARN | Owner call needed. |
 | Ledger L/D entry past REVIEW-BY or KNOW-BY and still open | WARN | Resolve or mark EXPIRED. |
+| Ledger id used on two entries | WARN | Usually two sessions numbering at once; renumber the later one and its references. |
 | File in the ledger folder that is not a `YYYY-MM.md` month file | WARN | Not read as a ledger; its entries and readouts are invisible. |
 | `BRIEFING.md` older than the newest readout | FAIL | A stale correction wearing a fresh voice. |
 | `checked: DATE · source · stale after: N days` window blown | WARN | An external number describing the past as the present. |
@@ -204,6 +205,18 @@ once a quarter; a trim that is a chore happens when the checker says so.
 - Prefer append and edit tooling over read-then-rewrite round trips.
 - A suspiciously small file right after a write is a data-loss signal, not
   a relief. Read it back.
+
+## More than one session on a machine
+
+Sessions that share a machine collide on the machine, not only in files: the
+desktop, an editor that takes one client, a branch being pushed, the
+scheduled tasks. Before touching one, take its lease with
+`scripts/lease.py take <resource> --who "<your session's name>" --why "<what>"`.
+If it is held, message the holder and do something else meanwhile; never
+break a live lease. Shared files take appends, never rewrites, and a ledger id
+is taken at the moment of writing. The `session-leases` mod puts the lease in
+front of the action for Claude Code. The full protocol:
+`references/sessions.md`.
 
 ## What this skill does not do
 

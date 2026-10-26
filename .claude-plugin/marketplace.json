@@ -15,6 +15,11 @@
       "name": "probe-first",
       "source": "./plugins/probe-first",
       "description": "A mod that flags an absolute asserted with nothing run to check it — the failure the ledger scores most often. Procedural, never factual; speaks to the agent, never blocks."
+    },
+    {
+      "name": "session-leases",
+      "source": "./plugins/session-leases",
+      "description": "A mod for several sessions on one machine: before a git push, a scheduled-task change, a computer-use action or a command named in the machine's lease config, it takes a lease for the session and refuses the call while another session holds one, naming the holder. Fails open."
     }
   ]
 }

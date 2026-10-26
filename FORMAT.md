@@ -162,7 +162,9 @@ here for display; in the file every line starts at the margin):
 - **Id.** `L-` plus at least three digits, zero-padded to three — `L-007`,
   `L-042`, `L-1003` — continuous across month files and never reused. The
   checker reads the whole number; an id with fewer than three digits is a
-  WARN.
+  WARN, and so is one number on two entries in any month files
+  (`[WARN] ledger id L-NNN used N times (<files>)`), which is how two
+  sessions writing at once show up.
 - **Extent.** An entry is the text from its `## ` heading to the next line
   that starts with `## `, of any kind; the id immediately follows `## `.
   Where a block holds a key twice, the `REVIEW-BY` (or `KNOW-BY`) line
@@ -403,6 +405,28 @@ malformed value is exit 2); `--version` prints `icm_check X.Y.Z` and exits
 The checker is read-only: it writes no files and opens no network
 connection. It needs Python 3.8 or newer and the standard library, nothing
 else.
+
+## Leases
+
+`skills/icm-maintain/scripts/lease.py` (and its identical copy in
+`plugins/session-leases/`) keeps one lease per shared resource of a machine.
+Not yet a stable surface: the keys below may change in a minor version, with
+a CHANGELOG line.
+
+- **Folder.** `ICM_LEASE_DIR`, else `%LOCALAPPDATA%/icm-leases` on Windows,
+  else `$XDG_STATE_HOME/icm-leases` (default `~/.local/state/icm-leases`).
+  Per machine, outside any synced tree.
+- **Lease file.** `<resource>.json`, the resource lowercase letters, digits
+  and dashes (`^[a-z0-9][a-z0-9-]{0,47}$`). One JSON object: `who` (a name
+  another session can message), `why`, `since` and `expires` (Unix seconds),
+  `session` (the session id, from `CLAUDE_CODE_SESSION_ID` unless given).
+  Created exclusively, so two takers never both hold it.
+- **Around it.** `stale/<resource>-<ns>.json` keeps every expired lease that
+  was broken; `history.log` gets one line per TAKE, RENEW, RELEASE and
+  BREAK; `config.json` holds the `session-leases` mod's machine rules
+  (`plugins/session-leases/README.md`).
+- **Exit codes.** `0` done or free, `1` held by another session, `2` usage
+  error.
 
 ## Compatibility and deprecation
 

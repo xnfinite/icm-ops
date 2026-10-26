@@ -1,0 +1,9 @@
+{
+  "name": "session-leases",
+  "version": "0.1.0",
+  "description": "Two agent sessions on one machine never use a shared resource at once: before a git push, a scheduled-task change, a computer-use action or a resource named in the machine's lease config, it claims a lease for the session and refuses the call while another session holds it, naming the holder.",
+  "author": {
+    "name": "Nightflow Systems"
+  },
+  "license": "MIT"
+}
