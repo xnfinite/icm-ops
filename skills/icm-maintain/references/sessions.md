@@ -55,6 +55,10 @@ The daily log, the ledger, STATE and the catalog are written by every session.
 - Add your own dated section rather than rewriting another session's.
 - Take a ledger id at the moment of writing, in the same edit. The checker
   WARNs on an id used twice, because outcomes and readouts cite entries by id.
+  That rule alone lost a race on the day it was written: two sessions read the
+  same newest id, and an edit anchored on the older entry still applied. The
+  `session-leases` mod closes it at the write: an entry whose id is already
+  taken is refused, with the next free id named.
 
 ## Another workspace's things
 

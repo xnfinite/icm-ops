@@ -19,6 +19,11 @@ session through `lease.py` (shipped beside this file, and in
   holder and its reason, so the agent can message that session or do
   something else first.
 
+It also checks ledger ids at the moment of the write. An Edit or Write that adds
+a `## L-NNN` or `## D-NNN` heading to a `<ledger dir>/YYYY-MM.md` file is refused
+when that id is already in any month file, with the next free id named. Two
+sessions that read the same newest id would otherwise both take the next one.
+
 A session's identity is its session id, so the session's own claims renew
 instead of colliding. A lease taken by hand with a name
 (`python lease.py take editor --who "<name>" --why "<what>"`) keeps that name

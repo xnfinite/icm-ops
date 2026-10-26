@@ -124,7 +124,68 @@ async function lease($: any, l: Live, args: string[]) {
   return $.process.run([...(l.python ?? []), l.tool, ...args], { timeoutMs: 15000 })
 }
 
+/** A ledger month file as ICM lays it out, `<ledger dir>/YYYY-MM.md`, and an entry heading in one. */
+const LEDGER_MONTH = /[\\/]ledger[\\/]\d{4}-\d{2}\.md$/i
+const ENTRY_HEADING = /^##[ \t]+([LD])-(\d+)\b/gim
+
+function entryIds(text: string): string[] {
+  return [...text.matchAll(ENTRY_HEADING)].map(m => `${m[1].toUpperCase()}-${Number(m[2])}`)
+}
+
+function padded(id: string): string {
+  return `${id[0]}-${id.slice(2).padStart(3, '0')}`
+}
+
+/**
+ * The write-time check for ledger ids. Two sessions that read the newest id and append within the
+ * same minute both take the next number, and an Edit anchored on an older entry still applies:
+ * a second L-107 once landed between L-106 and the first L-107. Reading the month files at the
+ * moment of the write and refusing a taken id turns a silent duplicate into a refusal that names
+ * the next free id. Edits that keep an entry's heading (evidence, outcomes) pass untouched.
+ */
+async function takenLedgerId($: any, e: any): Promise<string | null> {
+  const file = String(e.file_path ?? '')
+  if (!LEDGER_MONTH.test(file)) return null
+  const incoming = entryIds(String(e.tool === 'Write' ? e.content ?? '' : e.new_string ?? ''))
+  const kept = new Set(e.tool === 'Edit' ? entryIds(String(e.old_string ?? '')) : [])
+  const added = incoming.filter(id => !kept.has(id))
+  if (added.length === 0) return null
+  const dir = file.replace(/[\\/][^\\/]+$/, '')
+  const self = (file.split(/[\\/]/).pop() ?? '').toLowerCase()
+  const taken = new Map<string, string>()
+  const max: Record<string, number> = { L: 0, D: 0 }
+  for (const id of incoming) max[id[0]] = Math.max(max[id[0]] ?? 0, Number(id.slice(2)))
+  for (const entry of await $.fs.list(dir)) {
+    if (!/^\d{4}-\d{2}\.md$/i.test(entry.name)) continue
+    for (const id of entryIds(String(await $.fs.read(`${dir}/${entry.name}`)))) {
+      max[id[0]] = Math.max(max[id[0]] ?? 0, Number(id.slice(2)))
+      // a Write replaces its own file's text, so only the other months can already hold its ids
+      if (!(e.tool === 'Write' && entry.name.toLowerCase() === self)) taken.set(id, entry.name)
+    }
+  }
+  const twice = added.find((id, i) => added.indexOf(id) !== i)
+  const clash = twice ?? added.find(id => taken.has(id))
+  if (!clash) return null
+  return (
+    `${NAME}: ledger id ${padded(clash)} is already taken${twice ? ' twice in this text' : ` in ${taken.get(clash)}`}. ` +
+    `Another session may have numbered at the same time. The next free id is ${padded(`${clash[0]}-${(max[clash[0]] ?? 0) + 1}`)}: ` +
+    'renumber this entry and append it at the end of the newest month file.'
+  )
+}
+
 export const register: Register = on => {
+  for (const tool of ['Edit', 'Write'] as const) {
+    on('tool.call', { tool }, async ($: any, e: any, next: any) => {
+      let refusal: string | null = null
+      try {
+        refusal = await takenLedgerId($, e)
+      } catch {
+        refusal = null // fail open: a check that broke never blocks a write
+      }
+      return refusal ? { deny: refusal } : next(e)
+    }).catch(($: any, e: any, next: any) => next(e))
+  }
+
   on('tool.call', async ($: any, e: any, next: any) => {
     const tool = String(e.tool ?? '')
     const cmd = typeof e.command === 'string' ? e.command : ''

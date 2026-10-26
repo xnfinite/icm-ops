@@ -94,6 +94,57 @@ test('a config rule adds a resource of its own', async ($, on) => {
   expect(take).toContain('45')
 })
 
+/** A workspace whose ledger folder holds `files`; counts the folder reads and the writes that ran. */
+function ledgerWorld(on: any, files: Record<string, string>) {
+  const seen = { lists: 0, writes: 0 }
+  mock.env(on, { LOCALAPPDATA: 'C:/Users/u/AppData/Local' })
+  on('session.id', () => ({ value: 'sess-aaaaaaaa' }))
+  on('session.cwd', () => ({ value: 'C:/ws' }))
+  on('fs.exists', () => ({ value: false }))
+  on('fs.list', () => {
+    seen.lists++
+    return { value: Object.keys(files).map(name => ({ name, kind: 'file', size: 1, mtimeMs: 0, isLink: false })) }
+  })
+  on('fs.read', ($: any, e: any) => ({ value: files[String(e.path).split(/[\\/]/).pop() ?? ''] ?? '' }))
+  on('process.run', () => ({ value: { exitCode: 0, stdout: '1\n', stderr: '' } }))
+  on('tool.call', () => { seen.writes++; return { result: {}, text: 'edited' } })
+  return seen
+}
+
+const LEDGER = {
+  '2026-09.md': '## L-090 - 2026-09-30 - builder\nCLAIM: a\nOUTCOME: open\n',
+  '2026-10.md': '## L-106 - 2026-10-26 - builder\nCLAIM: b\nOUTCOME: open\n\n## L-107 - 2026-10-26 - builder\nCLAIM: c\nOUTCOME: open\n',
+}
+const MONTH = 'C:/ws/04-memory/ledger/2026-10.md'
+
+test('a second L-107 is refused at the write, and the refusal names the next free id', async ($, on) => {
+  const seen = ledgerWorld(on, LEDGER)
+  const r = await $.tool.call({ tool: 'Edit', file_path: MONTH, old_string: 'CLAIM: b\nOUTCOME: open\n',
+    new_string: 'CLAIM: b\nOUTCOME: open\n\n## L-107 - 2026-10-26 - builder\nCLAIM: mine\n' } as any)
+  expect(r.deny).toMatch(/L-107 is already taken in 2026-10\.md/)
+  expect(r.deny).toMatch(/next free id is L-108/)
+  expect(seen.writes).toBe(0)
+})
+
+test('the next free id passes, and evidence added under an existing heading passes', async ($, on) => {
+  const seen = ledgerWorld(on, LEDGER)
+  const fresh = await $.tool.call({ tool: 'Edit', file_path: MONTH, old_string: 'CLAIM: c\nOUTCOME: open\n',
+    new_string: 'CLAIM: c\nOUTCOME: open\n\n## L-108 - 2026-10-26 - builder\nCLAIM: mine\n' } as any)
+  expect(fresh.deny).toBe(undefined)
+  const evidence = await $.tool.call({ tool: 'Edit', file_path: MONTH, old_string: '## L-106 - 2026-10-26 - builder\nCLAIM: b\n',
+    new_string: '## L-106 - 2026-10-26 - builder\nCLAIM: b\nEVIDENCE: it held\n' } as any)
+  expect(evidence.deny).toBe(undefined)
+  expect(seen.writes).toBe(2)
+})
+
+test('files outside a ledger folder are not read for ids', async ($, on) => {
+  const seen = ledgerWorld(on, LEDGER)
+  const r = await $.tool.call({ tool: 'Edit', file_path: 'C:/ws/04-memory/log/2026-10-26.md', old_string: 'a',
+    new_string: 'a\n## L-107 notes\n' } as any)
+  expect(r.deny).toBe(undefined)
+  expect(seen.lists).toBe(0)
+})
+
 test('it fails open: without python the call runs, with one note per session', async ($, on) => {
   world(on, { python: false })
   let ran = 0

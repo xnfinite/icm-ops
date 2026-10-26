@@ -28,6 +28,14 @@ ahead of shipping.
   open: a coordinator that broke must not stop work that a working one would allow.
   Its own plugin (`/plugin install session-leases@icm-ops`).
 
+  It also checks ledger ids at the moment of the write. An Edit or Write that adds a
+  `## L-NNN` or `## D-NNN` heading to a ledger month file is refused when that id is
+  already in any month file, and the refusal names the next free id. The rule "take the
+  id at the moment of writing" was not enough on the day it shipped: two sessions read
+  the same newest id, and an Edit anchored on the older entry still applied, so a
+  second entry with the same id landed in the middle of the file. Edits that keep an
+  entry's heading (evidence, outcomes) pass untouched.
+
 - **The checker WARNs on a ledger id used twice** (`[WARN] ledger id L-NNN used N
   times (<files>)`). FORMAT already said ids are never reused; two sessions writing at
   once can both take the next number, and outcomes and readouts cite entries by id.

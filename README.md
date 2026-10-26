@@ -114,8 +114,9 @@ ask. The protocol: `skills/icm-maintain/references/sessions.md`.
 The `session-leases` mod puts the lease in front of the action: before a git
 push, a scheduled-task change, a computer-use action or a command named in the
 machine's lease config, it claims the lease for the session and refuses the call
-while another session holds it. It fails open, so a broken coordinator never
-stops work:
+while another session holds it. It also refuses a new ledger entry whose id is
+already taken, naming the next free one. It fails open, so a broken coordinator
+never stops work:
 
 ```
 /plugin install session-leases@icm-ops
