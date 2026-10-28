@@ -41,7 +41,7 @@ Reports, never fixes. Exit 0 with no FAIL, 1 with any FAIL, 2 on a usage
 or config error (nothing on stdout), 3 on an internal error (traceback on
 stderr). `--json` prints one object to stdout and nothing else:
 
-    {"version": "0.2.0", "today": "YYYY-MM-DD",
+    {"version": "0.3.0", "today": "YYYY-MM-DD",
      "fail": [...], "warn": [...], "info": [...]}
 
 plus an "error" key after an internal error. Readers should ignore keys
@@ -100,7 +100,7 @@ import sys
 import traceback
 import urllib.parse
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 DEFAULTS = {
     "hot_budgets": {

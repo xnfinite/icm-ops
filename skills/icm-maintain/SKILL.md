@@ -4,7 +4,7 @@ description: Keep an ICM workspace structurally true across sessions — a read-
 license: MIT
 metadata:
   author: "xnfinite"
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # icm-maintain

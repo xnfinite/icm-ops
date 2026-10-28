@@ -4,7 +4,7 @@ description: Keep score on an AI's advice inside an ICM workspace. Every consequ
 license: MIT
 metadata:
   author: "xnfinite"
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # icm-ledger

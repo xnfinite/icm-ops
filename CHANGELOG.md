@@ -9,6 +9,8 @@ ahead of shipping.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-28
+
 ### Added
 - **More than one session on a machine: leases.** `skills/icm-maintain/scripts/lease.py`
   gives each shared resource of a machine (the desktop, an editor that takes one client,
@@ -238,5 +240,7 @@ Initial release. Three skills for an ICM workspace that already exists.
 - `example/` (a minimal workspace the checker passes), `example-broken/`
   (five seeded defects it names), and `scripts/test.py`.
 
+[Unreleased]: https://github.com/xnfinite/icm-ops/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/xnfinite/icm-ops/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/xnfinite/icm-ops/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/xnfinite/icm-ops/releases/tag/v0.1.0
