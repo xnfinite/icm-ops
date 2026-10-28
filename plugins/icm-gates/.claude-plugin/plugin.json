@@ -1,0 +1,13 @@
+{
+  "name": "icm-gates",
+  "version": "0.1.0",
+  "description": "A change to a guarded file does not go live until its own tests pass on that exact content: before a workspace's install or deploy command runs, it runs the gate's suite on the files as they stand, refuses on a failure or a file over its size limit, and asks for a second reader on gated changes. Opt-in per workspace; does nothing without an icm-gates.json.",
+  "author": {
+    "name": "xnfinite",
+    "url": "https://github.com/xnfinite"
+  },
+  "homepage": "https://github.com/xnfinite/icm-ops",
+  "repository": "https://github.com/xnfinite/icm-ops",
+  "license": "MIT",
+  "skills": "./skills"
+}

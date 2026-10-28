@@ -122,6 +122,22 @@ never stops work:
 /plugin install session-leases@icm-ops
 ```
 
+### icm-gates: tests before anything goes live
+
+When agents write the code, the work moves from writing it to checking it, and
+the check skipped under momentum is the suite before the install. A workspace
+names its gates in `icm-gates.json`: the files a command ships, the test that
+must pass, the install command, a size limit and a short rules file. Before a
+matching install, the `icm-gates` mod runs the suite on the files as they stand
+and refuses on a failure or a file over its limit; a pass is remembered for that
+exact content. A write to a gated file asks once for a second reader who did not
+write it. It does nothing in a workspace without an `icm-gates.json`, and changes
+nothing in the core:
+
+```
+/plugin install icm-gates@icm-ops
+```
+
 Read what it does before you trust it, as with any mod:
 
 ```bash

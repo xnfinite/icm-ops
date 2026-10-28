@@ -28,6 +28,19 @@ ahead of shipping.
   open: a coordinator that broke must not stop work that a working one would allow.
   Its own plugin (`/plugin install session-leases@icm-ops`).
 
+- **A fourth plugin, `icm-gates`: tests before anything goes live.** When agents write
+  the code, the work moves from writing it to checking it, and the check skipped under
+  momentum is the suite before the install. A workspace names its gates in
+  `icm-gates.json` (files, a test command, the install command, a size limit, a rules
+  file). Before a matching install the mod runs the suite on the files as they stand,
+  remembers a pass for that exact content, and refuses on a failure, a missing file or
+  a file over its limit; a write to a gated file asks once for a second reader. Its
+  skill covers the rules file, the unanchored second reader, and checking one result
+  outside the loop that made it. Opt-in twice: its own plugin
+  (`/plugin install icm-gates@icm-ops`), and inactive without an `icm-gates.json`.
+  Nothing in the core changed: the skills, the checker, its mod and `icm-ops.json` are
+  as they were.
+
   It also checks ledger ids at the moment of the write. An Edit or Write that adds a
   `## L-NNN` or `## D-NNN` heading to a ledger month file is refused when that id is
   already in any month file, and the refusal names the next free id. The rule "take the

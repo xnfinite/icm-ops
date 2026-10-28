@@ -20,6 +20,11 @@
       "name": "session-leases",
       "source": "./plugins/session-leases",
       "description": "A mod for several sessions on one machine: before a git push, a scheduled-task change, a computer-use action or a command named in the machine's lease config, it takes a lease for the session and refuses the call while another session holds one, naming the holder. Fails open."
+    },
+    {
+      "name": "icm-gates",
+      "source": "./plugins/icm-gates",
+      "description": "A mod and a skill for code that goes live: before an install or deploy command named in the workspace's icm-gates.json, it runs that gate's tests on the files as they stand and refuses on a failure or a file over its size limit, and asks for a second reader on gated changes. Opt-in; inactive without an icm-gates.json."
     }
   ]
 }
