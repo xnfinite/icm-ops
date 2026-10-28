@@ -52,10 +52,16 @@ line). A config rule that reuses a default's resource name replaces that
 default. `lease_tool` points at another copy of `lease.py`; `python` skips the
 interpreter probe.
 
-The lease folder is `ICM_LEASE_DIR`, else `%LOCALAPPDATA%/icm-leases` on
+The lease folder is `ICM_LEASE_DIR`, else `%USERPROFILE%/.icm-leases` on
 Windows, else `$XDG_STATE_HOME/icm-leases` (default
 `~/.local/state/icm-leases`). It is per machine and outside any synced
-folder: a resource on one machine means nothing on another.
+folder: a resource on one machine means nothing on another. It is also one
+folder for every process of the user, which on Windows rules out AppData: a
+packaged (MSIX) app's processes, such as those of a packaged install of the
+Claude desktop app, write AppData into a package-private folder that no other
+program sees, so a session started from the app and one started from a
+terminal would each see only their own leases. Where a host remaps the
+profile folder too, set `ICM_LEASE_DIR` to one folder every context sees.
 
 ## Limits
 

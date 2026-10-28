@@ -36,6 +36,13 @@ at once and requires exactly one winner.
 - Release when done. A session that dies holding one is covered by the expiry,
   so keep `--minutes` honest.
 
+The folder must be the same for every session, whatever started it. On
+Windows it is `%USERPROFILE%\.icm-leases`, not AppData: a packaged (MSIX)
+app's processes write AppData into a package-private folder, so a session
+started from such an app and one started from a terminal would each see only
+their own leases, and one resource would have two owners. Where a host remaps
+the profile folder too, set `ICM_LEASE_DIR` to one folder every context sees.
+
 Name resources once, lowercase with dashes, and keep the list where the
 workspace's sessions read it: `desktop`, `editor`, `gpu`, `git-<repo>`,
 `scheduled-tasks`, `disk-moves`, and `<other-workspace>` for files another

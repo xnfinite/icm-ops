@@ -81,6 +81,18 @@ ahead of shipping.
   routes install skills, not hooks. The checker is unchanged and still runs on a
   bare interpreter with or without the mod. The mod never blocks a write.
 
+### Fixed
+- **The lease folder on Windows is `%USERPROFILE%\.icm-leases`, no longer
+  `%LOCALAPPDATA%\icm-leases`.** A packaged (MSIX) app's processes write AppData
+  into a package-private folder, so sessions started from a packaged install of
+  the Claude desktop app kept their leases where a session started from a
+  terminal could not see them: one resource, two owners. `lease.py` and the
+  `session-leases` mod (which reads `config.json` from the folder) both moved;
+  `ICM_LEASE_DIR` still overrides, and tests pin the default in both. To move
+  an existing folder, copy `config.json` and any live lease into the new one;
+  the old folder's real location is
+  `%LOCALAPPDATA%\Packages\<package>\LocalCache\Local\icm-leases`.
+
 ## [0.2.0] - 2026-09-08
 
 Behaviour and formats change, so this is a minor version, not a patch. The

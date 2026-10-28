@@ -22,9 +22,12 @@ or the same name renews; a renewal never shortens a lease and keeps the name
 already on it. An expired lease is broken by the next taker and kept in
 stale/. Every take, renew, release and break goes to history.log.
 
-Leases live on this machine only, outside any synced folder: ICM_LEASE_DIR if
-set, else %LOCALAPPDATA%/icm-leases on Windows, else
-$XDG_STATE_HOME/icm-leases (default ~/.local/state/icm-leases).
+Leases live on this machine only, outside any synced folder, in one folder
+every process of the user sees: ICM_LEASE_DIR if set, else
+%USERPROFILE%/.icm-leases on Windows, else $XDG_STATE_HOME/icm-leases
+(default ~/.local/state/icm-leases). Not %LOCALAPPDATA% on Windows: a packaged
+(MSIX) app's processes write AppData into a private copy, so sessions started
+from such an app and from a terminal would each see only their own leases.
 
 Exit codes: 0 done or free, 1 held by another session, 2 usage error.
 Standard library only, Python 3.8 and newer. The same file ships in
@@ -48,8 +51,8 @@ MAX_MINUTES = 12 * 60
 def lease_dir():
     if os.environ.get("ICM_LEASE_DIR"):
         return Path(os.environ["ICM_LEASE_DIR"])
-    if os.name == "nt" and os.environ.get("LOCALAPPDATA"):
-        return Path(os.environ["LOCALAPPDATA"]) / "icm-leases"
+    if os.name == "nt" and os.environ.get("USERPROFILE"):  # not AppData: see the docstring
+        return Path(os.environ["USERPROFILE"]) / ".icm-leases"
     state = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
     return Path(state) / "icm-leases"
 

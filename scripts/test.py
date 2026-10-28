@@ -56,8 +56,9 @@ exits 1 on any FAIL. What it checks:
       renew by the holder's session without losing its name or shortening
       it, release only by the holder, break and keep an expired lease, log
       every move, usage errors exit 2, and eight sessions taking at once
-      leave exactly one winner. Its copy in plugins/session-leases/ is
-      byte-identical.
+      leave exactly one winner. With ICM_LEASE_DIR unset the folder is the
+      profile's .icm-leases on Windows, never AppData. Its copy in
+      plugins/session-leases/ is byte-identical.
 """
 import contextlib
 import html
@@ -727,6 +728,18 @@ def test_lease():
             p.stderr.close()
         check(codes.count(0) == 1 and codes.count(1) == 7,
               f"lease: eight sessions taking at once, exactly one wins (exit codes {sorted(codes)})")
+    with tempfile.TemporaryDirectory(prefix="icm-ops-lease-home-") as d:
+        base = pathlib.Path(d)
+        env = {k: v for k, v in os.environ.items() if k not in ("ICM_LEASE_DIR", "XDG_STATE_HOME")}
+        env.update(USERPROFILE=str(base / "profile"), LOCALAPPDATA=str(base / "appdata"), HOME=str(base / "home"),
+                   XDG_STATE_HOME=str(base / "state"), CLAUDE_CODE_SESSION_ID="sess-home")
+        r = subprocess.run([sys.executable, str(LEASE), "take", "editor", "--why", "where"],
+                           capture_output=True, text=True, env=env)
+        want = base / "profile" / ".icm-leases" if os.name == "nt" else base / "state" / "icm-leases"
+        found = sorted(base.rglob("editor.json"))
+        check(r.returncode == 0 and found == [want / "editor.json"],
+              "lease: with ICM_LEASE_DIR unset the folder is <profile>/.icm-leases on Windows, never AppData, "
+              f"and $XDG_STATE_HOME/icm-leases elsewhere (found {[str(p.relative_to(base)) for p in found]})")
 
 
 # --- (l) config errors exit 2 -----------------------------------------------

@@ -413,9 +413,12 @@ else.
 Not yet a stable surface: the keys below may change in a minor version, with
 a CHANGELOG line.
 
-- **Folder.** `ICM_LEASE_DIR`, else `%LOCALAPPDATA%/icm-leases` on Windows,
+- **Folder.** `ICM_LEASE_DIR`, else `%USERPROFILE%/.icm-leases` on Windows,
   else `$XDG_STATE_HOME/icm-leases` (default `~/.local/state/icm-leases`).
-  Per machine, outside any synced tree.
+  Per machine, outside any synced tree, and the same folder for every
+  process of the user. That is why Windows does not use `%LOCALAPPDATA%`: a
+  packaged (MSIX) app's processes write AppData into a package-private
+  folder that no other program sees.
 - **Lease file.** `<resource>.json`, the resource lowercase letters, digits
   and dashes (`^[a-z0-9][a-z0-9-]{0,47}$`). One JSON object: `who` (a name
   another session can message), `why`, `since` and `expires` (Unix seconds),

@@ -64,12 +64,16 @@ async function safe(value: Promise<string | undefined>): Promise<string> {
   }
 }
 
-/** The folder lease.py uses, worked out the same way: ICM_LEASE_DIR, else the per-user state folder. */
+/**
+ * The folder lease.py uses, worked out the same way: ICM_LEASE_DIR, else the profile folder on
+ * Windows (not AppData, which a packaged app's processes see as a private copy), else the per-user
+ * state folder.
+ */
 async function leaseDir($: any): Promise<string> {
   const explicit = await safe($.env.get('ICM_LEASE_DIR'))
   if (explicit) return explicit
-  const local = await safe($.env.get('LOCALAPPDATA'))
-  if (local) return `${local}/icm-leases`
+  const profile = await safe($.env.get('USERPROFILE'))
+  if (profile) return `${profile}/.icm-leases`
   const state = (await safe($.env.get('XDG_STATE_HOME'))) || `${await safe($.env.get('HOME'))}/.local/state`
   return `${state}/icm-leases`
 }

@@ -1,15 +1,15 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-type World = { take?: { exitCode: number; stdout: string }; config?: object; python?: boolean }
+type World = { take?: { exitCode: number; stdout: string }; config?: object; python?: boolean; opened?: string[] }
 
 /** The machine beneath the plugin: one session, a lease tool that answers as told, an optional config. */
 function world(on: any, opts: World = {}): string[][] {
   const calls: string[][] = []
-  mock.env(on, { LOCALAPPDATA: 'C:/Users/u/AppData/Local' })
+  mock.env(on, { USERPROFILE: 'C:/Users/u', LOCALAPPDATA: 'C:/Users/u/AppData/Local' })
   on('session.id', () => ({ value: 'sess-aaaaaaaa' }))
   on('session.cwd', () => ({ value: 'C:/work/icm-ops' }))
-  on('fs.exists', () => ({ value: opts.config !== undefined }))
-  on('fs.read', () => ({ value: JSON.stringify(opts.config ?? {}) }))
+  on('fs.exists', ($: any, e: any) => { opts.opened?.push(String(e.path)); return { value: opts.config !== undefined } })
+  on('fs.read', ($: any, e: any) => { opts.opened?.push(String(e.path)); return { value: JSON.stringify(opts.config ?? {}) } })
   on('process.run', ($: any, e: any) => {
     const argv = [...e.argv] as string[]
     calls.push(argv)
@@ -94,10 +94,20 @@ test('a config rule adds a resource of its own', async ($, on) => {
   expect(take).toContain('45')
 })
 
+test('the machine rules come from <profile>/.icm-leases, never from AppData', async ($, on) => {
+  const opened: string[] = []
+  const calls = world(on, { opened, config: { rules: [{ resource: 'editor', command: '\\bbuild-editor\\b', mode: 'hold', minutes: 45 }] } })
+  on('tool.call', () => ({ result: {}, text: 'ok' }))
+  await $.tool.call({ tool: 'Bash', command: 'build-editor --project 80' } as any)
+  expect(opened.map(p => p.replace(/\\/g, '/'))).toContain('C:/Users/u/.icm-leases/config.json')
+  expect(opened.some(p => /AppData/i.test(p))).toBe(false)
+  expect(takes(calls)[0]).toContain('editor')
+})
+
 /** A workspace whose ledger folder holds `files`; counts the folder reads and the writes that ran. */
 function ledgerWorld(on: any, files: Record<string, string>) {
   const seen = { lists: 0, writes: 0 }
-  mock.env(on, { LOCALAPPDATA: 'C:/Users/u/AppData/Local' })
+  mock.env(on, { USERPROFILE: 'C:/Users/u', LOCALAPPDATA: 'C:/Users/u/AppData/Local' })
   on('session.id', () => ({ value: 'sess-aaaaaaaa' }))
   on('session.cwd', () => ({ value: 'C:/ws' }))
   on('fs.exists', () => ({ value: false }))
