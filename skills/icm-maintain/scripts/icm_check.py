@@ -663,8 +663,10 @@ def run(root, cfg, today):
                 add("WARN", f"malformed date in {rel}: {due.group(2)!r} (want YYYY-MM-DD) "
                             f"at {ident} {due.group(1).upper()}")
             elif is_open and d < today:
-                add("WARN", f"ledger {ident} past its date ({d.isoformat()}) and still open "
-                            f"— resolve or mark EXPIRED ({f.name})")
+                # An L-entry expires; a D-entry is never marked, only flagged (FORMAT.md, Disagreement entries).
+                todo = ("resolve or mark EXPIRED" if ident[0] == "L"
+                        else "flag it for the owner under Needs owner; a D-entry is never marked EXPIRED")
+                add("WARN", f"ledger {ident} past its date ({d.isoformat()}) and still open — {todo} ({f.name})")
     # An id is never reused (FORMAT.md, Ledger entries). Two sessions writing the ledger at once
     # can both take the next number; outcomes and readouts cite entries by id, so one id on two
     # entries silently splits one record into two.
@@ -683,7 +685,10 @@ def run(root, cfg, today):
     # "checked: YYYY-MM-DD · source · stale after: N days". A blown window
     # means the number describes the past while reading as the present.
     # A line break may sit inside the stamp; a blank line (LF or CRLF) may not.
-    stamp = re.compile(r"checked:[ \t]*(\S+)(?:[^\r\n]|\r?\n(?!\r?\n)){0,120}?stale after:\s*(\d+)\s*day")
+    # Nor may one stamp's stretch run into the next stamp's `checked:` (a word of its own, so a
+    # "re-checked:" inside a stamp's source does not count).
+    stamp = re.compile(r"checked:[ \t]*(\S+)(?:(?!(?<![\w-])checked:)[^\r\n]|\r?\n(?!\r?\n)){0,120}?"
+                       r"stale after:\s*(\d+)\s*day")
     for f in files:
         rel = rels[f]
         if is_historical(rel):
@@ -725,19 +730,25 @@ def run(root, cfg, today):
                         f"({newest_readout.isoformat()}) — regenerate it and the front-desk block")
 
     # --- 8. clock vs newest log (date tripwire) ----------------------------
-    logs = glob_files(root, cfg["log_dir"], "2???-??-??.md", add)
+    # A name that is not date-shaped is not a log; a date-shaped one that is no real date is a WARN
+    # (FORMAT.md, Clocks). Neither may stand in for the newest real log here or in check 9.
+    logs = []
+    for f in glob_files(root, cfg["log_dir"], "2???-??-??.md", add):
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", f.stem):
+            continue
+        if parse_date(f.stem) is None:
+            add("WARN", f"log has a non-date name: {f.name}")
+            continue
+        logs.append(f)
     if logs:
         newest = logs[-1].stem
         d = parse_date(newest)
-        if d is None:
-            add("WARN", f"newest log has a non-date name: {newest}.md")
-        else:
-            age = (today - d).days
-            when = f"{-age} day(s) ahead" if age < 0 else f"{age} day(s) old"
-            add("INFO", f"clock says {today.isoformat()}; newest log is {newest} ({when})")
-            if age < -1:
-                add("FAIL", f"newest log {newest} is dated ahead of this machine's clock ({today.isoformat()}) "
-                            "— a wrong clock on the writing or the reading side; --today pins the clock")
+        age = (today - d).days
+        when = f"{-age} day(s) ahead" if age < 0 else f"{age} day(s) old"
+        add("INFO", f"clock says {today.isoformat()}; newest log is {newest} ({when})")
+        if age < -1:
+            add("FAIL", f"newest log {newest} is dated ahead of this machine's clock ({today.isoformat()}) "
+                        "— a wrong clock on the writing or the reading side; --today pins the clock")
 
     # --- 9. truncation guard -----------------------------------------------
     # A protected file must not collapse below 40% of its last-known-good

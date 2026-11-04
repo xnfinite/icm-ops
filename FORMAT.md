@@ -420,16 +420,19 @@ a CHANGELOG line.
   packaged (MSIX) app's processes write AppData into a package-private
   folder that no other program sees.
 - **Lease file.** `<resource>.json`, the resource lowercase letters, digits
-  and dashes (`^[a-z0-9][a-z0-9-]{0,47}$`). One JSON object: `who` (a name
+  and dashes (`^[a-z0-9][a-z0-9-]{0,47}$`), except `config`, which is
+  reserved for the mod's `config.json` (a usage error, exit 2). One JSON object: `who` (a name
   another session can message), `why`, `since` and `expires` (Unix seconds),
   `session` (the session id, from `CLAUDE_CODE_SESSION_ID` unless given).
   Created exclusively, so two takers never both hold it.
 - **Around it.** `stale/<resource>-<ns>.json` keeps every expired lease that
   was broken; `history.log` gets one line per TAKE, RENEW, RELEASE and
   BREAK; `config.json` holds the `session-leases` mod's machine rules
-  (`plugins/session-leases/README.md`).
-- **Exit codes.** `0` done or free, `1` held by another session, `2` usage
-  error.
+  (`plugins/session-leases/README.md`); `<resource>.json.lock` is held for
+  a moment while a lease is broken, renewed or released, and one older than
+  10 s is taken as left by a process that died and removed.
+- **Exit codes.** `0` done or free, `1` held by another session (or its
+  `.lock` could not be had within 30 s), `2` usage error.
 
 ## Compatibility and deprecation
 

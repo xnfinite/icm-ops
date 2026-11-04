@@ -73,11 +73,13 @@ async function interpreter($: any): Promise<string | null> {
   return null
 }
 
-async function checkWorkspace($: any, root: string): Promise<string | null> {
+/** Run the shipped checker on a workspace: its FAIL lines, or null when it could not run. */
+async function failsOf($: any, root: string): Promise<{ py: string; script: string; fails: string[] } | null> {
   const py = await interpreter($)
   if (!py) return null
-  const script = root + '/' + CHECKER
-  if (!(await $.fs.exists(script))) return null // the pack is not installed in this workspace
+  // The checker ships inside this plugin, not inside the workspace it checks.
+  const script = String($.plugin.root).replace(/[\\/]+$/, '') + '/' + CHECKER
+  if (!(await $.fs.exists(script))) return null
 
   const { exitCode, stdout } = await $.process.run([py, script, root, '--json'], {
     cwd: root,
@@ -85,10 +87,28 @@ async function checkWorkspace($: any, root: string): Promise<string | null> {
   })
   // The checker exits non-zero when it FAILS, which is a result, not an error.
   if (!stdout.trim() || (exitCode !== 0 && exitCode !== 1)) return null
+  return { py, script, fails: (JSON.parse(stdout.trim()) as Check).fail }
+}
 
-  const result = JSON.parse(stdout.trim()) as Check
+/** Workspaces whose baseline was tried: a checker that gives no result is tried once, not before every write. */
+const baselined = new Set<string>()
+
+/** Before a session's first write to a workspace, record the FAILs it inherited, silently. */
+async function baseline($: any, root: string): Promise<void> {
+  if (baselined.has(root) || (await read($, seen))[root] !== undefined) return
+  baselined.add(root)
+  const r = await failsOf($, root)
+  if (r) await update($, seen, s => ({ ...s, [root]: r.fails }))
+}
+
+/** One argument of a command line a person or agent can paste: quoted when it holds a space. */
+const arg = (s: string) => (/\s/.test(s) ? `"${s}"` : s)
+
+async function checkWorkspace($: any, root: string): Promise<string | null> {
+  const r = await failsOf($, root)
+  if (!r) return null
   const before: string[] = (await read($, seen))[root] ?? []
-  const now = result.fail
+  const now = r.fails
 
   const introduced = now.filter(f => !before.includes(f))
   const cleared = before.filter(f => !now.includes(f))
@@ -101,7 +121,7 @@ async function checkWorkspace($: any, root: string): Promise<string | null> {
       'icm-ops: this write FAILS the workspace checker.\n' +
       introduced.map(f => '- ' + f).join('\n') +
       '\nFix it now — it is cheaper than the compaction it becomes. ' +
-      'Full detail: python ' + CHECKER + ' ' + root
+      'Full detail: ' + [r.py, r.script, root].map(arg).join(' ')
     )
   }
   if (cleared.length > 0 && now.length === 0) return 'icm-ops: workspace checker is clear, 0 FAIL.'
@@ -114,11 +134,17 @@ export const register: Register = on => {
       const file: unknown = (e as any).file_path ?? (e as any).notebook_path
       if (typeof file !== 'string' || file.length === 0) return next(e)
 
+      const path = file.replace(/\\/g, '/')
+      const found = await workspaceOf($, path).catch(() => null)
+      // The FAILs the workspace already had, so this write is not blamed for them.
+      if (found) await baseline($, found).catch(() => undefined)
+
       const ran = await next(e)
       if (ran.deny !== undefined || ran.isError === true) return ran
 
       try {
-        const root = await workspaceOf($, file.replace(/\\/g, '/'))
+        // A write can create the workspace itself (its 00-catalog/), so look again after it.
+        const root = found ?? (await workspaceOf($, path))
         const note = root ? await checkWorkspace($, root) : null
         // `context` is read by the model after the tool's result and never shown to
         // the person — the agent is the one who writes here, so the agent is told.

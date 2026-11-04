@@ -38,8 +38,8 @@ exits 1 on any FAIL. What it checks:
       example-broken/: its [FAIL] and [WARN] lines and its FAIL / WARN
       counts (the INFO count and the header are presentation), with no
       doubled percent sign.
-  (j) a case-insensitive banned-phrase sweep over shipped files finds zero
-      hits.
+  (j) a case-insensitive banned-phrase sweep over shipped files (the mods in
+      hooks/, plugins/ and types/ included) finds zero hits.
   (k) robustness: scratch copies of example/ carrying malformed dates, odd
       ids, a loose readout heading, unterminated frontmatter, CommonMark link
       forms (inline, reference definitions, code that is not scanned), a BOM
@@ -48,7 +48,10 @@ exits 1 on any FAIL. What it checks:
       catalog over its budget, a stray file in the ledger folder, an .MD
       extension, a `----` rule, doubled slashes in a catalog row, a log a
       day ahead and a CRLF stamp never crash the checker: empty stderr, a
-      summary line and --json that parses, in every case.
+      summary line and --json that parses, in every case. Stray names in the
+      log folder never stand in for the newest log, a stamp is read whatever
+      `checked:` precedes it, and a D-entry past KNOW-BY is never told to be
+      marked EXPIRED.
   (l) config errors exit 2 with nothing on stdout: an absolute path or a
       `..` segment in a path key, an empty hot_budgets key, an icm-ops.json
       that is a directory.
@@ -56,7 +59,10 @@ exits 1 on any FAIL. What it checks:
       renew by the holder's session without losing its name or shortening
       it, release only by the holder, break and keep an expired lease, log
       every move, usage errors exit 2, and eight sessions taking at once
-      leave exactly one winner. With ICM_LEASE_DIR unset the folder is the
+      leave exactly one winner; a second session arriving between a read
+      and a break or release never ends with two holders or a lost lease;
+      every documented command line runs as written outside a session; the
+      name "config" is refused. With ICM_LEASE_DIR unset the folder is the
       profile's .icm-leases on Windows, never AppData. Its copy in
       plugins/session-leases/ is byte-identical.
 """
@@ -68,10 +74,12 @@ import json
 import os
 import pathlib
 import re
+import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CHECKER = ROOT / "skills" / "icm-maintain" / "scripts" / "icm_check.py"
@@ -82,7 +90,7 @@ BANNED = re.compile(
     r"skool|reddit\.com", re.I)
 SWEEP = ["README.md", "AGENTS.md", "CLAUDE.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
          "CODE_OF_CONDUCT.md", "FORMAT.md", ".claude-plugin", "assets", "skills", "example",
-         "example-broken"]
+         "example-broken", "hooks", "plugins", "types"]
 SKIP_DIRS = {".git", ".icm", "node_modules", "__pycache__"}
 TEXT_SUFFIXES = {".md", ".py", ".json", ".yml", ".toml", ".svg"}
 TEXT_NAMES = {".editorconfig", ".gitattributes", ".gitignore"}
@@ -656,6 +664,61 @@ def test_robustness():
                (out.count("used 2 times") == 1, "reported once, not once per use"),
            ])
 
+    def stray_logs(ws):
+        ws.write("04-memory/log/2026-12-25.md", "---\ntype: memory\nupdated: 2026-12-25\n---\n")
+        ws.write("04-memory/log/2026-xx-yy.md", "---\ntype: memory\nupdated: 2026-09-01\n---\n")
+        ws.write("04-memory/log/2026-09-31.md", "---\ntype: memory\nupdated: 2026-09-01\n---\n")
+
+    robust(17, "a future log beside a placeholder name and a date that is no real day", stray_logs,
+           lambda code, out: [
+               (code == 1 and "[FAIL] newest log 2026-12-25 is dated ahead" in out,
+                "the newest real log is still judged against the clock (FAIL)"),
+               ("[WARN] log has a non-date name: 2026-09-31.md" in out, "a date-shaped name that is no real day is a WARN"),
+               ("2026-xx-yy" not in out, "a name that is not date-shaped is not read as a log"),
+           ])
+
+    def stray_beside_truncated(ws):
+        ws.write("04-memory/log/2026-09-08.md.bak", "x" * 2000 + "\n")
+        ws.write("04-memory/log/2026-09-08.md", "---\ntype: memory\nupdated: 2026-09-08\n---\n")
+        ws.write("04-memory/log/2026-ab-cd.md", "---\ntype: memory\nupdated: 2026-09-01\n---\n")
+
+    robust(18, "a stray name in the log folder beside a truncated newest log", stray_beside_truncated,
+           lambda code, out: [
+               (code == 1 and "[FAIL] POSSIBLE TRUNCATION: 04-memory/log/2026-09-08.md" in out,
+                "the truncation guard still covers the newest real log"),
+           ])
+
+    def stamps_in_a_row(ws):
+        state = (ws.root / "04-memory" / "STATE.md").read_text(encoding="utf-8")
+        ws.write("04-memory/STATE.md", state +
+                 "\nPrice 19 (checked: 2026-09-01 on the invoice). Fee 5 (checked: 2020-01-01 · vendor page"
+                 " · stale after: 30 days).\n"
+                 "\n- Seats: 40 (checked: 2026-09-01, by hand)\n- Rent 7 (checked: 2020-02-01 · lease"
+                 " · stale after: 30 days)\n"
+                 "\nTax 3 (checked: 2020-03-01 · rate card, re-checked: by phone · stale after: 30 days)\n")
+
+    robust(19, "a checked: with no window just before a stamp", stamps_in_a_row,
+           lambda code, out: [
+               ("STALE ANCHOR in 04-memory/STATE.md: checked 2020-01-01" in out,
+                "a stale stamp on the same line as an earlier checked: is still read"),
+               ("STALE ANCHOR in 04-memory/STATE.md: checked 2020-02-01" in out and "malformed date" not in out,
+                "a stale stamp on the bullet after one is still read, and the earlier one is no malformed date"),
+               ("STALE ANCHOR in 04-memory/STATE.md: checked 2020-03-01" in out,
+                "a re-checked: inside a stamp's source does not cut the stamp off"),
+           ])
+
+    robust(20, "a D-entry past KNOW-BY and still open",
+           lambda ws: ws.write("04-memory/ledger/2026-10.md",
+                               "---\ntype: memory\nupdated: 2026-10-01\n---\n\n"
+                               "## D-001 · 2026-08-01 · builder: ship vs advisor: wait\n"
+                               "STAKES: a week either way.\nKNOW-BY: 2026-08-15 — the launch.\nRESOLVED: open\n"),
+           lambda code, out: [
+               ("[WARN] ledger D-001 past its date (2026-08-15) and still open" in out, "it is a WARN"),
+               ("D-001 past its date (2026-08-15) and still open — flag it for the owner" in out
+                and "D-001 past its date (2026-08-15) and still open — resolve or mark EXPIRED" not in out,
+                "it says to flag it for the owner, not to mark it EXPIRED (FORMAT.md, Disagreement entries)"),
+           ])
+
     check(json_results and all(json_results),
           f"robustness 14 (--json parses with fail / warn / info in every case): {sum(json_results)}/{len(json_results)}")
 
@@ -700,6 +763,10 @@ def test_lease():
         check(code == 0 and out.startswith("renewed") and after["who"] == "Docs" and after["why"] == "build 80"
               and after["expires"] >= before["expires"] and after["since"] == before["since"],
               "lease: the holder's own auto-claim renews, keeps the name and reason, never shortens")
+        code, out = run_lease(d, "take", "editor", "--who", "Docs 2", "--why", "build 80", session="sess-a")
+        check(code == 0 and out.startswith("renewed") and held("editor")["who"] == "Docs 2",
+              "lease: a renewal with a new --who takes that name")
+        run_lease(d, "take", "editor", "--who", "Docs", "--why", "build 80", session="sess-a")
         check(run_lease(d, "release", "editor", session="sess-b")[0] == 1,
               "lease: another session cannot release it")
         check(run_lease(d, "release", "editor", session="sess-a")[0] == 0 and run_lease(d, "check", "editor")[0] == 0,
@@ -728,6 +795,9 @@ def test_lease():
             p.stderr.close()
         check(codes.count(0) == 1 and codes.count(1) == 7,
               f"lease: eight sessions taking at once, exactly one wins (exit codes {sorted(codes)})")
+    test_lease_interleavings()
+    test_lease_locks()
+    test_lease_documented_lines()
     with tempfile.TemporaryDirectory(prefix="icm-ops-lease-home-") as d:
         base = pathlib.Path(d)
         env = {k: v for k, v in os.environ.items() if k not in ("ICM_LEASE_DIR", "XDG_STATE_HOME")}
@@ -740,6 +810,180 @@ def test_lease():
         check(r.returncode == 0 and found == [want / "editor.json"],
               "lease: with ICM_LEASE_DIR unset the folder is <profile>/.icm-leases on Windows, never AppData, "
               f"and $XDG_STATE_HOME/icm-leases elsewhere (found {[str(p.relative_to(base)) for p in found]})")
+
+
+# Session A runs lease.py in-process; the moment A has read the lease file, session B (a real
+# second process) takes the same resource, and A goes on once B is done or 1 s has passed. That
+# is the window in which two sessions can each be told they hold one resource.
+INTERLEAVE = r'''
+import importlib.util, json, os, subprocess, sys
+spec = importlib.util.spec_from_file_location("lease", sys.argv[1])
+lease = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(lease)
+plain, b = lease.read, []
+def read(p):
+    cur = plain(p)
+    if not b:
+        env = dict(os.environ, CLAUDE_CODE_SESSION_ID="sess-b")
+        b.append(subprocess.Popen([sys.executable, sys.argv[1], "take", "gpu", "--why", "b"], env=env,
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+        try:
+            b[0].wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            pass  # B is waiting on A, as it should
+    return cur
+lease.read = read
+os.environ["CLAUDE_CODE_SESSION_ID"] = "sess-a"
+code_a = lease.main(sys.argv[2:])
+print(json.dumps([code_a, b[0].wait() if b else None]))
+'''
+
+
+def test_lease_interleavings():
+    with tempfile.TemporaryDirectory(prefix="icm-ops-lease-weave-") as d:
+        harness = pathlib.Path(d) / "interleave.py"
+        harness.write_text(INTERLEAVE, encoding="utf-8")
+        leases = pathlib.Path(d) / "leases"
+        leases.mkdir()
+        env = dict(os.environ, ICM_LEASE_DIR=str(leases))
+
+        def weave(seed, *a_args):
+            for p in leases.glob("**/*"):
+                if p.is_file():
+                    p.unlink()
+            (leases / "gpu.json").write_text(json.dumps(seed), encoding="utf-8")
+            r = subprocess.run([sys.executable, "-I", str(harness), str(LEASE)] + list(a_args),
+                               capture_output=True, text=True, env=env, timeout=60)
+            codes = json.loads(r.stdout.strip().splitlines()[-1]) if r.returncode == 0 and r.stdout.strip() else None
+            gpu = leases / "gpu.json"
+            holder = json.loads(gpu.read_text(encoding="utf-8")).get("session") if gpu.exists() else None
+            return codes, holder
+
+        old = {"who": "Gone", "why": "crashed", "since": 0, "expires": 1, "session": "sess-old"}
+        codes, holder = weave(old, "take", "gpu", "--why", "a")
+        check(codes is not None and codes.count(0) == 1 and holder in ("sess-a", "sess-b")
+              and holder == ("sess-a", "sess-b")[codes.index(0)],
+              f"lease: two sessions breaking one expired lease at once, exactly one is told it took it "
+              f"and it is the one on file (exit codes A, B: {codes}; on file: {holder})")
+        mine = {"who": "session sess-a", "why": "a", "since": 0, "expires": 1, "session": "sess-a"}
+        codes, holder = weave(mine, "release", "gpu")
+        check(codes == [0, 0] and holder == "sess-b",
+              f"lease: a release never removes the lease another session took meanwhile "
+              f"(exit codes A, B: {codes}; on file: {holder})")
+        codes, holder = weave(mine, "take", "gpu", "--why", "a")
+        check(codes is not None and codes.count(0) == 1 and holder == ("sess-a", "sess-b")[codes.index(0)],
+              f"lease: a holder renewing its expired lease while another session takes it leaves one holder, "
+              f"the one on file (exit codes A, B: {codes}; on file: {holder})")
+
+
+# A lease.py run in-process with its lock wait cut to 1 s, so a lock that never goes is quick to test.
+SHORT_WAIT = r'''
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("lease", sys.argv[1])
+lease = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(lease)
+lease.LOCK_WAIT = 1
+sys.exit(lease.main(sys.argv[2:]))
+'''
+
+
+# lease.py as Windows runs it: an exclusive create of the lock or of the lease file is refused with
+# PermissionError, as CreateFile refuses a name that is a folder or a file still being deleted.
+WINDOWS_DENIALS = r'''
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("lease", sys.argv[1])
+lease = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(lease)
+lease.WINDOWS = True
+left = {".lock": int(sys.argv[2]), ".json": int(sys.argv[3])}
+real_open = os.open
+def denying_open(path, flags, *rest):
+    for end in left:
+        if str(path).endswith(end) and flags & os.O_EXCL and left[end] > 0:
+            left[end] -= 1
+            raise PermissionError(13, "Access is denied", str(path))
+    return real_open(path, flags, *rest)
+os.open = denying_open
+sys.exit(lease.main(sys.argv[4:]))
+'''
+
+
+def test_lease_locks():
+    with tempfile.TemporaryDirectory(prefix="icm-ops-lease-lock-") as d:
+        leases = pathlib.Path(d) / "leases"
+        leases.mkdir()
+        env = dict(os.environ, ICM_LEASE_DIR=str(leases), CLAUDE_CODE_SESSION_ID="sess-a")
+        old = json.dumps({"who": "Gone", "why": "crashed", "since": 0, "expires": 1, "session": "sess-old"})
+        (leases / "gpu.json").write_text(old, encoding="utf-8")
+        lock = leases / "gpu.json.lock"
+        lock.write_text("", encoding="utf-8")
+        hour_ago = time.time() - 3600
+        os.utime(str(lock), (hour_ago, hour_ago))
+        try:
+            r = subprocess.run([sys.executable, str(LEASE), "take", "gpu", "--why", "a"],
+                               capture_output=True, text=True, env=env, timeout=20)
+            ok = r.returncode == 0 and r.stdout.strip().splitlines()[-1].startswith("took gpu") and not lock.exists()
+        except subprocess.TimeoutExpired:
+            ok = False
+        check(ok, "lease: a change lock left by a dead process is removed, and the take goes ahead")
+        (leases / "gpu.json").write_text(old, encoding="utf-8")
+        if lock.is_file():
+            lock.unlink()  # left by the case above when it failed
+        lock.mkdir()  # a lock that cannot be removed
+        os.utime(str(lock), (hour_ago, hour_ago))
+        harness = pathlib.Path(d) / "short_wait.py"
+        harness.write_text(SHORT_WAIT, encoding="utf-8")
+        why = ""
+        try:
+            r = subprocess.run([sys.executable, "-I", str(harness), str(LEASE), "take", "gpu", "--why", "a"],
+                               capture_output=True, text=True, env=env, timeout=20)
+            ok = (r.returncode == 1 and "could not lock gpu" in r.stderr
+                  and (leases / "gpu.json").read_text(encoding="utf-8") == old)
+            why = "" if ok else " (exit %d: %s)" % (r.returncode, (r.stderr.strip().splitlines() or [""])[-1][:160])
+        except subprocess.TimeoutExpired:
+            ok, why = False, " (still waiting after 20 s)"
+        check(ok, "lease: a lock that cannot be removed ends in exit 1 and a message, the lease untouched, "
+                  "never an endless wait" + why)
+        for name, lock_denials, lease_denials, seed in (
+                ("the change lock", 3, 0, old),  # its holder is dropping it, or it is a folder
+                ("the lease file", 0, 1, None)):  # a release is deleting it as this take arrives
+            for p in leases.glob("gpu.json*"):
+                if p.is_dir():
+                    p.rmdir()
+                else:
+                    p.unlink()
+            if seed:
+                (leases / "gpu.json").write_text(seed, encoding="utf-8")
+            harness = pathlib.Path(d) / "windows_denials.py"
+            harness.write_text(WINDOWS_DENIALS, encoding="utf-8")
+            r = subprocess.run([sys.executable, "-I", str(harness), str(LEASE), str(lock_denials), str(lease_denials),
+                                "take", "gpu", "--why", "a"], capture_output=True, text=True, env=env, timeout=20)
+            out = r.stdout.strip().splitlines()
+            check(r.returncode == 0 and out and out[-1].startswith("took gpu"),
+                  f"lease: on Windows, a PermissionError creating {name} means it is there or going, so the take "
+                  f"looks again (exit {r.returncode}{': ' + r.stderr.strip().splitlines()[-1][:120] if r.stderr.strip() else ''})")
+
+
+def test_lease_documented_lines():
+    """Every `python lease.py ...` line the docs show runs as written outside a session."""
+    lines = []
+    for doc in (LEASE, ROOT / "skills" / "icm-maintain" / "references" / "sessions.md"):
+        for line in doc.read_text(encoding="utf-8").splitlines():
+            if line.strip().startswith("python lease.py "):
+                lines.append(line.strip()[len("python lease.py "):].replace("<your session's name>", "docs session"))
+    with tempfile.TemporaryDirectory(prefix="icm-ops-lease-docs-") as d:
+        bad = []
+        for line in lines:
+            code, out = run_lease(d, *shlex.split(line))
+            if code == 2 or (line.startswith("release") and "released" not in out):
+                bad.append("%s -> exit %d: %s" % (line, code, out.strip()[:80]))
+        check(len(lines) >= 8 and not bad and run_lease(d, "check", "editor")[0] == 0,
+              f"lease: the {len(lines)} documented command lines run as written outside a session {bad}")
+        cfg = pathlib.Path(d) / "config.json"
+        cfg.write_text('{"python": "python3"}', encoding="utf-8")
+        code, _ = run_lease(d, "take", "config", "--who", "x", "--why", "y")
+        check(code == 2 and cfg.read_text(encoding="utf-8") == '{"python": "python3"}',
+              "lease: 'config' is refused as a resource name and the machine config.json is left alone")
 
 
 # --- (l) config errors exit 2 -----------------------------------------------

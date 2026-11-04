@@ -57,7 +57,7 @@ and never fixes.** Its report is the worklist. It covers:
 | `hot_budgets` key that names no file | WARN | A budget guarding nothing is a rule switched off, usually by a typo. |
 | Other file over the size target | WARN / FAIL | Doing two jobs; historical records WARN, working files FAIL. |
 | Decision without `review-by:` / past it | WARN | Owner call needed. |
-| Ledger L/D entry past REVIEW-BY or KNOW-BY and still open | WARN | Resolve or mark EXPIRED. |
+| Ledger L/D entry past REVIEW-BY or KNOW-BY and still open | WARN | L: resolve or mark EXPIRED. D: flag for the owner; never marked. |
 | Ledger id used on two entries | WARN | Usually two sessions numbering at once; renumber the later one and its references. |
 | File in the ledger folder that is not a `YYYY-MM.md` month file | WARN | Not read as a ledger; its entries and readouts are invisible. |
 | `BRIEFING.md` older than the newest readout | FAIL | A stale correction wearing a fresh voice. |
@@ -140,7 +140,8 @@ maintenance log.
      search; else report.
    - Ledger entry past its date, still open → mark `EXPIRED` per
      `icm-ledger` and list it under Needs owner with any evidence pointer
-     found in the logs; an unattended run never attaches an outcome.
+     found in the logs; an unattended run never attaches an outcome. A
+     D-entry past KNOW-BY is listed under Needs owner and never marked.
    - Decision past `review-by:` → do NOT reopen it; add one line flagging it
      for the owner and renew nothing.
    - Stale `BRIEFING.md` (FAIL) → regenerate it AND the front-desk block

@@ -24,12 +24,12 @@ file create, so two takers can never both hold it; the test suite starts eight
 at once and requires exactly one winner.
 
     python lease.py take editor --who "<your session's name>" --why "build 80" --minutes 90
-    python lease.py release editor
+    python lease.py release editor --who "<your session's name>"
     python lease.py list
 
 - Take the lease before you act, with a name another session can message.
 - Long work renews by taking again. A renewal never shortens a lease and keeps
-  the name already on it.
+  the name already on it unless `--who` gives a new one.
 - **Held: ask, do not collide.** The tool prints the holder and its reason.
   Message that session, and do something else meanwhile. Never break a live
   lease; an expired one is broken by the next taker and kept in `stale/`.
