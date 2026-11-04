@@ -9,6 +9,35 @@ ahead of shipping.
 
 ## [Unreleased]
 
+### Fixed
+- **The checker mod ran in no install.** `hooks/register.ts` looked for `icm_check.py`
+  inside the workspace; the plugin route puts it inside the plugin. It now runs the
+  plugin's own copy, records the FAILs a workspace already has before a session's first
+  write there (so that write is not told it introduced them), and its "Full detail" hint
+  names the interpreter and checker path that ran. Tests: `hooks/register.test.ts`.
+- **lease.py: two sessions could each be told they hold one resource.** Breaking an
+  expired lease, renewing and releasing read the lease file and then changed whatever
+  was at that path; a session arriving in between could have its fresh lease moved to
+  `stale/` or deleted. Those three now hold a short `<resource>.json.lock` between the
+  read and the change. The name `config` is refused (it is the mod's machine
+  `config.json`). The documented `take` and `release` lines carry `--who`, which they
+  need outside a session.
+- **session-leases** released no lease whose take first broke an expired one (the
+  `took` line is second), and took none for a `git push` on its own line of a
+  multi-line command.
+- **probe-first**: a hedge excuses its own sentence, not an absolute in another one.
+- **The checker**: a file in `log_dir` whose name is not a real date no longer stands in
+  for the newest log (it hid a future-dated log and the truncation guard on the real
+  one); a `checked:` with no window no longer hides the stamp after it; a D-entry past
+  KNOW-BY is told to go to the owner, not to be marked EXPIRED.
+- **Tests:** the mod tests used Windows drive paths and failed on Linux and macOS; they
+  now pass on all three. The banned-phrase sweep covers `hooks/`, `plugins/` and `types/`.
+- **Docs:** the copy-install commands clone first and create the target folder; the
+  README names the checker's path under the plugin route, uses `python3` where it says
+  to, lists the calls `claude plugin validate .` reports, and says the `skills` CLI
+  also installs the icm-gates skill. This entry moves the 0.3.0 ledger-id paragraph
+  from icm-gates to session-leases, where the check lives.
+
 ## [0.3.0] - 2026-10-28
 
 ### Added
@@ -30,6 +59,14 @@ ahead of shipping.
   open: a coordinator that broke must not stop work that a working one would allow.
   Its own plugin (`/plugin install session-leases@icm-ops`).
 
+  It also checks ledger ids at the moment of the write. An Edit or Write that adds a
+  `## L-NNN` or `## D-NNN` heading to a ledger month file is refused when that id is
+  already in any month file, and the refusal names the next free id. The rule "take the
+  id at the moment of writing" was not enough on the day it shipped: two sessions read
+  the same newest id, and an Edit anchored on the older entry still applied, so a
+  second entry with the same id landed in the middle of the file. Edits that keep an
+  entry's heading (evidence, outcomes) pass untouched.
+
 - **A fourth plugin, `icm-gates`: tests before anything goes live.** When agents write
   the code, the work moves from writing it to checking it, and the check skipped under
   momentum is the suite before the install. A workspace names its gates in
@@ -42,14 +79,6 @@ ahead of shipping.
   (`/plugin install icm-gates@icm-ops`), and inactive without an `icm-gates.json`.
   Nothing in the core changed: the skills, the checker, its mod and `icm-ops.json` are
   as they were.
-
-  It also checks ledger ids at the moment of the write. An Edit or Write that adds a
-  `## L-NNN` or `## D-NNN` heading to a ledger month file is refused when that id is
-  already in any month file, and the refusal names the next free id. The rule "take the
-  id at the moment of writing" was not enough on the day it shipped: two sessions read
-  the same newest id, and an Edit anchored on the older entry still applied, so a
-  second entry with the same id landed in the middle of the file. Edits that keep an
-  entry's heading (evidence, outcomes) pass untouched.
 
 - **The checker WARNs on a ledger id used twice** (`[WARN] ledger id L-NNN used N
   times (<files>)`). FORMAT already said ids are never reused; two sessions writing at

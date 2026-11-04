@@ -36,7 +36,7 @@ const SHELLS = '^(Bash|PowerShell)$'
 const DEFAULT_RULES: Rule[] = [
   {
     resource: 'git-{repo}',
-    command: '(?:^|[;&|(]\\s*)git(?:\\.exe)?(?:\\s+-C\\s+(?:"[^"]*"|\'[^\']*\'|\\S+)|\\s+-c\\s+\\S+)*\\s+push\\b',
+    command: '(?:^|[;&|(\\n]\\s*)git(?:\\.exe)?(?:\\s+-C\\s+(?:"[^"]*"|\'[^\']*\'|\\S+)|\\s+-c\\s+\\S+)*\\s+push\\b',
     mode: 'call',
     minutes: 30,
   },
@@ -143,7 +143,7 @@ function padded(id: string): string {
 /**
  * The write-time check for ledger ids. Two sessions that read the newest id and append within the
  * same minute both take the next number, and an Edit anchored on an older entry still applies:
- * a second L-107 once landed between L-106 and the first L-107. Reading the month files at the
+ * a second L-107 once landed between L-106 and the original L-107. Reading the month files at the
  * moment of the write and refusing a taken id turns a silent duplicate into a refusal that names
  * the next free id. Edits that keep an entry's heading (evidence, outcomes) pass untouched.
  */
@@ -245,7 +245,7 @@ export const register: Register = on => {
         continue
       }
       claimedAt.set(resource, Date.now())
-      if (rule.mode === 'call' && /^took\b/.test(out)) toRelease.push(resource)
+      if (rule.mode === 'call' && /^took\b/m.test(out)) toRelease.push(resource)
     }
 
     const ran = await next(e)

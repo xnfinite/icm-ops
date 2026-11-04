@@ -69,8 +69,13 @@ export const register: Register = on => {
         .join('\n')
       if (text.length < 40) return stored
 
-      const hit = ABSOLUTE.exec(text)
-      if (!hit || HEDGED.test(text)) return stored
+      // A hedge excuses its own sentence, not an absolute in another one.
+      let hit: RegExpExecArray | null = null
+      for (const sentence of text.split(/(?<=[.!?])\s+|\n+/)) {
+        hit = HEDGED.test(sentence) ? null : ABSOLUTE.exec(sentence)
+        if (hit) break
+      }
+      if (!hit) return stored
 
       await update($, turn, t => ({ ...t, flagged: true }))
       await $.session.append({

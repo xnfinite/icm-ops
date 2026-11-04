@@ -10,17 +10,20 @@ atomic (the lease file is created exclusively), so two sessions can never both
 hold it. The protocol around it: references/sessions.md in this skill.
 
     python lease.py take git-myrepo --who "docs session" --why "push the release"
-    python lease.py take editor --why "build 80" --minutes 90
-    python lease.py release editor
+    python lease.py take editor --who "build session" --why "build 80" --minutes 90
+    python lease.py release editor --who "build session"
     python lease.py check git-myrepo
     python lease.py list
 
 A session is known by --session, which defaults to the CLAUDE_CODE_SESSION_ID
 environment variable, and by --who, a name another session can message (the
-name the agent's session listing shows). Taking again with the same session
-or the same name renews; a renewal never shortens a lease and keeps the name
-already on it. An expired lease is broken by the next taker and kept in
-stale/. Every take, renew, release and break goes to history.log.
+name the agent's session listing shows); outside a session that sets that
+variable, take and release need --who. Taking again with the same session or
+the same name renews; a renewal never shortens a lease and keeps the name
+already on it unless --who gives a new one. An expired lease is broken by the
+next taker and kept in stale/; breaking, renewing and releasing hold a short
+<resource>.json.lock, so the lease a session judged is the one it changes.
+Every take, renew, release and break goes to history.log.
 
 Leases live on this machine only, outside any synced folder, in one folder
 every process of the user sees: ICM_LEASE_DIR if set, else
@@ -45,7 +48,9 @@ from pathlib import Path
 __version__ = "1"  # the lease file format: who, why, since, expires, session
 
 RESOURCE = re.compile(r"[a-z0-9][a-z0-9-]{0,47}")
+RESERVED = ("config",)  # config.json in the lease folder is the mod's machine config, not a lease
 MAX_MINUTES = 12 * 60
+LOCK_STALE = 10  # seconds: a change lock older than this was left by a process that died holding it
 
 
 def lease_dir():
@@ -102,6 +107,36 @@ def create_exclusive(p, data):
     os.close(fd)
 
 
+class Locked:
+    """A short per-resource lock held while an existing lease is read and then broken, renewed or
+    released, so the lease a session judged is the one it changes. Creating a lease needs no
+    lock: the exclusive create is already atomic."""
+
+    def __init__(self, p):
+        self.path = p.with_name(p.name + ".lock")
+
+    def __enter__(self):
+        while True:
+            try:
+                os.close(os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+                return self
+            except FileExistsError:
+                pass
+            try:
+                if time.time() - self.path.stat().st_mtime > LOCK_STALE:
+                    self.path.unlink()  # its holder died between taking and dropping it
+                    continue
+            except OSError:
+                continue  # dropped meanwhile: try again
+            time.sleep(0.01)
+
+    def __exit__(self, *exc):
+        try:
+            self.path.unlink()
+        except OSError:
+            pass
+
+
 def break_expired(root, p, cur):
     stale = root / "stale"
     stale.mkdir(exist_ok=True)
@@ -127,47 +162,49 @@ def take(root, a):
             return 0
         except FileExistsError:
             pass
-        cur = read(p)
-        if cur is None:  # mid-write by another session, or damaged: look again before judging
-            time.sleep(0.2)
+        with Locked(p):  # the lease read here is the lease changed below
             cur = read(p)
-            if cur is None:
-                break_expired(root, p, {"who": "?", "why": "unreadable lease file", "expires": 0})
-                continue
-        if same_holder(cur, a):
-            data["since"] = cur.get("since", now)
-            data["expires"] = max(cur["expires"], data["expires"])
-            if not a.who_given:
-                data["who"] = cur.get("who") or a.who
-            if a.why.startswith("auto:") and cur.get("why"):
-                data["why"] = cur["why"]
-            data["session"] = a.session or cur.get("session", "")
-            tmp = p.with_name("%s.%d.tmp" % (p.name, os.getpid()))
-            tmp.write_text(json.dumps(data), encoding="utf-8")
-            os.replace(str(tmp), str(p))
-            print("renewed %s until %s" % (a.resource, stamp(data["expires"])))
-            history(root, "RENEW %s by %s: %s (%d min)" % (a.resource, data["who"], a.why, a.minutes))
-            return 0
-        if cur["expires"] > time.time():
-            print("HELD: " + describe(a.resource, cur))
-            print('Message the holder (by the name above, or the busy session working on that) '
-                  'or do something else first. Never break a live lease.')
-            return 1
-        break_expired(root, p, cur)
+            if cur is None:  # mid-write by another session, or damaged: look again before judging
+                time.sleep(0.2)
+                cur = read(p)
+                if cur is None:
+                    break_expired(root, p, {"who": "?", "why": "unreadable lease file", "expires": 0})
+                    continue
+            if same_holder(cur, a):
+                data["since"] = cur.get("since", now)
+                data["expires"] = max(cur["expires"], data["expires"])
+                if not a.who_given:
+                    data["who"] = cur.get("who") or a.who
+                if a.why.startswith("auto:") and cur.get("why"):
+                    data["why"] = cur["why"]
+                data["session"] = a.session or cur.get("session", "")
+                tmp = p.with_name("%s.%d.tmp" % (p.name, os.getpid()))
+                tmp.write_text(json.dumps(data), encoding="utf-8")
+                os.replace(str(tmp), str(p))
+                print("renewed %s until %s" % (a.resource, stamp(data["expires"])))
+                history(root, "RENEW %s by %s: %s (%d min)" % (a.resource, data["who"], a.why, a.minutes))
+                return 0
+            if cur["expires"] > time.time():
+                print("HELD: " + describe(a.resource, cur))
+                print('Message the holder (by the name above, or the busy session working on that) '
+                      'or do something else first. Never break a live lease.')
+                return 1
+            break_expired(root, p, cur)
     print("could not take %s: other sessions kept racing for it; try again" % a.resource, file=sys.stderr)
     return 1
 
 
 def release(root, a):
     p = root / (a.resource + ".json")
-    cur = read(p)
-    if cur is None:
-        print("%s is not held" % a.resource)
-        return 0
-    if not same_holder(cur, a):
-        print("NOT YOURS: " + describe(a.resource, cur))
-        return 1
-    p.unlink(missing_ok=True)
+    with Locked(p):  # the lease judged yours is the lease removed
+        cur = read(p)
+        if cur is None:
+            print("%s is not held" % a.resource)
+            return 0
+        if not same_holder(cur, a):
+            print("NOT YOURS: " + describe(a.resource, cur))
+            return 1
+        p.unlink(missing_ok=True)
     print("released %s" % a.resource)
     history(root, "RELEASE %s by %s" % (a.resource, cur.get("who")))
     return 0
@@ -212,6 +249,8 @@ def main(argv=None):
     if getattr(a, "resource", None) is not None and not RESOURCE.fullmatch(a.resource):
         ap.error("resource names are lowercase words joined by dashes, e.g. editor or git-myrepo (got %r)"
                  % a.resource)
+    if getattr(a, "resource", None) in RESERVED:
+        ap.error("%r is reserved: %s.json in the lease folder is the machine config" % (a.resource, a.resource))
     if a.cmd == "take" and not 1 <= a.minutes <= MAX_MINUTES:
         ap.error("--minutes must be 1-%d; renew a long job instead of taking a day" % MAX_MINUTES)
     if a.cmd in ("take", "release"):

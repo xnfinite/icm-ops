@@ -15,8 +15,9 @@ makes the install command itself the checkpoint.
 - **The `icm-gates` skill** says how to set gates up, write the short rules file a reviewer
   checks against, run the second reader, and check one result outside the loop that made it.
 
-It is opt-in twice: installed on its own, and inactive in any workspace without an
-`icm-gates.json`. It does not read or change the icm-ops core, its checker or `icm-ops.json`.
+It is opt-in twice: the mod is installed on its own, and it is inactive in any workspace
+without an `icm-gates.json`. (The `skills` CLI route also copies the skill; without the mod
+and a config it is reading matter only.) It does not read or change the icm-ops core, its checker or `icm-ops.json`.
 
 ```
 /plugin install icm-gates@icm-ops

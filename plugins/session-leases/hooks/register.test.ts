@@ -5,9 +5,9 @@ type World = { take?: { exitCode: number; stdout: string }; config?: object; pyt
 /** The machine beneath the plugin: one session, a lease tool that answers as told, an optional config. */
 function world(on: any, opts: World = {}): string[][] {
   const calls: string[][] = []
-  mock.env(on, { USERPROFILE: 'C:/Users/u', LOCALAPPDATA: 'C:/Users/u/AppData/Local' })
+  mock.env(on, { USERPROFILE: '/Users/u', LOCALAPPDATA: '/Users/u/AppData/Local' })
   on('session.id', () => ({ value: 'sess-aaaaaaaa' }))
-  on('session.cwd', () => ({ value: 'C:/work/icm-ops' }))
+  on('session.cwd', () => ({ value: '/work/icm-ops' }))
   on('fs.exists', ($: any, e: any) => { opts.opened?.push(String(e.path)); return { value: opts.config !== undefined } })
   on('fs.read', ($: any, e: any) => { opts.opened?.push(String(e.path)); return { value: JSON.stringify(opts.config ?? {}) } })
   on('process.run', ($: any, e: any) => {
@@ -60,11 +60,34 @@ test('a lease the session already held is renewed, not released, after the push'
   expect(calls.some(c => c.includes('release'))).toBe(false)
 })
 
+test('a push whose take first broke an expired lease still releases it after the push', async ($, on) => {
+  // lease.py's real output when the previous holder's lease had expired: two lines, "took" second.
+  const calls = world(on, {
+    take: {
+      exitCode: 0,
+      stdout:
+        'broke an expired lease: git-icm-ops: session sess-old, since 2026-10-26 09:00, for "auto: Bash git push", ' +
+        'EXPIRED at 2026-10-26 09:30; kept in /Users/u/.icm-leases/stale/git-icm-ops-1.json\n' +
+        'took git-icm-ops until 2026-10-26 12:30\n',
+    },
+  })
+  on('tool.call', () => ({ result: {}, text: 'pushed' }))
+  await $.tool.call({ tool: 'Bash', command: 'git push' } as any)
+  expect(calls.some(c => c.includes('release') && c.includes('git-icm-ops'))).toBe(true)
+})
+
+test('a git push on its own line of a multi-line command takes the repo lease', async ($, on) => {
+  const calls = world(on)
+  on('tool.call', () => ({ result: {}, text: 'pushed' }))
+  await $.tool.call({ tool: 'Bash', command: 'git add -A\ngit commit -m "fix"\ngit push origin main' } as any)
+  expect(takes(calls)[0]).toContain('git-icm-ops')
+})
+
 test('ordinary calls never touch the lease tool', async ($, on) => {
   const calls = world(on)
   on('tool.call', () => ({ result: {}, text: 'ok' }))
   await $.tool.call({ tool: 'Bash', command: 'git status && git log -1' } as any)
-  await $.tool.call({ tool: 'Read', file_path: 'C:/work/README.md' } as any)
+  await $.tool.call({ tool: 'Read', file_path: '/work/README.md' } as any)
   await $.tool.call({ tool: 'Bash', command: 'git commit -m "push it later"' } as any)
   expect(takes(calls)).toEqual([])
 })
@@ -99,7 +122,7 @@ test('the machine rules come from <profile>/.icm-leases, never from AppData', as
   const calls = world(on, { opened, config: { rules: [{ resource: 'editor', command: '\\bbuild-editor\\b', mode: 'hold', minutes: 45 }] } })
   on('tool.call', () => ({ result: {}, text: 'ok' }))
   await $.tool.call({ tool: 'Bash', command: 'build-editor --project 80' } as any)
-  expect(opened.map(p => p.replace(/\\/g, '/'))).toContain('C:/Users/u/.icm-leases/config.json')
+  expect(opened.map(p => p.replace(/\\/g, '/'))).toContain('/Users/u/.icm-leases/config.json')
   expect(opened.some(p => /AppData/i.test(p))).toBe(false)
   expect(takes(calls)[0]).toContain('editor')
 })
@@ -107,9 +130,9 @@ test('the machine rules come from <profile>/.icm-leases, never from AppData', as
 /** A workspace whose ledger folder holds `files`; counts the folder reads and the writes that ran. */
 function ledgerWorld(on: any, files: Record<string, string>) {
   const seen = { lists: 0, writes: 0 }
-  mock.env(on, { USERPROFILE: 'C:/Users/u', LOCALAPPDATA: 'C:/Users/u/AppData/Local' })
+  mock.env(on, { USERPROFILE: '/Users/u', LOCALAPPDATA: '/Users/u/AppData/Local' })
   on('session.id', () => ({ value: 'sess-aaaaaaaa' }))
-  on('session.cwd', () => ({ value: 'C:/ws' }))
+  on('session.cwd', () => ({ value: '/ws' }))
   on('fs.exists', () => ({ value: false }))
   on('fs.list', () => {
     seen.lists++
@@ -125,7 +148,7 @@ const LEDGER = {
   '2026-09.md': '## L-090 - 2026-09-30 - builder\nCLAIM: a\nOUTCOME: open\n',
   '2026-10.md': '## L-106 - 2026-10-26 - builder\nCLAIM: b\nOUTCOME: open\n\n## L-107 - 2026-10-26 - builder\nCLAIM: c\nOUTCOME: open\n',
 }
-const MONTH = 'C:/ws/04-memory/ledger/2026-10.md'
+const MONTH = '/ws/04-memory/ledger/2026-10.md'
 
 test('a second L-107 is refused at the write, and the refusal names the next free id', async ($, on) => {
   const seen = ledgerWorld(on, LEDGER)
@@ -149,7 +172,7 @@ test('the next free id passes, and evidence added under an existing heading pass
 
 test('files outside a ledger folder are not read for ids', async ($, on) => {
   const seen = ledgerWorld(on, LEDGER)
-  const r = await $.tool.call({ tool: 'Edit', file_path: 'C:/ws/04-memory/log/2026-10-26.md', old_string: 'a',
+  const r = await $.tool.call({ tool: 'Edit', file_path: '/ws/04-memory/log/2026-10-26.md', old_string: 'a',
     new_string: 'a\n## L-107 notes\n' } as any)
   expect(r.deny).toBe(undefined)
   expect(seen.lists).toBe(0)

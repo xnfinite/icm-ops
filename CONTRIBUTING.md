@@ -1,7 +1,7 @@
 # Contributing to icm-ops
 
-icm-ops is three skills, one checker, two example trees and a test suite,
-all plain files. Changes are welcome inside that scope. This file says how
+icm-ops is three skills, one checker, a lease tool, four Claude Code mods,
+two example trees and a test suite, all plain files. Changes are welcome inside that scope. This file says how
 to run the tests, what is out of scope, the house rules the suite enforces,
 how formats change, how versions move, how to add a scar, and what happens
 if the maintainer goes quiet.
@@ -9,8 +9,21 @@ if the maintainer goes quiet.
 ## Run the tests
 
 ```
-python scripts/test.py
+python3 scripts/test.py
 ```
+
+(`python` or `py` on Windows.) The mods have tests of their own, run with
+Claude Code from the repository root, one folder at a time:
+
+```
+claude plugin test .                         # the checker mod: hooks/register.test.ts
+claude plugin test plugins/probe-first
+claude plugin test plugins/session-leases
+claude plugin test plugins/icm-gates
+```
+
+A plugin's tests pass from its own folder only; run from `.`, they are
+loaded against the checker mod and fail.
 
 Any Python 3.8 or newer; no install step and no dependencies, because the
 suite is the proof that the checker runs on a bare interpreter. It validates

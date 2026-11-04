@@ -4,16 +4,18 @@
 
 You built the workspace with [icm-architect](https://github.com/RinDig/icm-architect), or by hand from the [ICM paper](https://arxiv.org/abs/2603.16021). This is the layer that runs it afterwards, when the sessions that follow start trusting files that have quietly gone stale, reporting work that never landed on disk, and giving confident advice that nobody ever scores.
 
-Written to the Agent Skills format, which Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Goose, Amp, Roo Code, JetBrains Junie, OpenHands, Letta and the rest of the [agentskills.io client list](https://agentskills.io) read (list as read on 2026-09-08). Exercised here with Claude Code and the `skills` CLI; reports from other harnesses are welcome. Three folders of markdown and one Python script. No runtime dependencies, no telemetry, MIT.
+Written to the Agent Skills format, which Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, OpenCode, Goose, Amp, Roo Code, JetBrains Junie, OpenHands, Letta and the rest of the [agentskills.io client list](https://agentskills.io) read (list as read on 2026-09-08). Exercised here with Claude Code and the `skills` CLI; reports from other harnesses are welcome. Three folders of markdown and two Python scripts (the checker and `lease.py`). No runtime dependencies, no telemetry, MIT.
 
 ## Install
 
-The route that needs nothing — no CLI, no network, no account: copy the three folders under `skills/` into wherever your agent reads skills.
+The route that needs no CLI and no account: get the repository once, then copy the three folders under `skills/` into wherever your agent reads skills. Use one of the three copy lines; `mkdir -p` creates the folder when it is not there yet.
 
 ```bash
-cp -r skills/* ~/.claude/skills/     # Claude Code, user-level
-cp -r skills/* .claude/skills/       # Claude Code, this project
-cp -r skills/* .agents/skills/       # Codex, Cursor, OpenCode and other readers of .agents/skills/
+git clone https://github.com/xnfinite/icm-ops && cd icm-ops
+
+mkdir -p ~/.claude/skills && cp -r skills/* ~/.claude/skills/                                   # Claude Code, user-level
+mkdir -p /path/to/project/.claude/skills && cp -r skills/* /path/to/project/.claude/skills/     # Claude Code, one project
+mkdir -p /path/to/project/.agents/skills && cp -r skills/* /path/to/project/.agents/skills/     # Codex, Cursor, OpenCode and other readers of .agents/skills/
 ```
 
 This needs a file copy and, for the checker, any Python 3.8 or newer. `python3` on macOS and Linux; `python` or `py` on Windows.
@@ -24,7 +26,7 @@ Two conveniences, each dated because each may change while the copy route will n
 npx skills add xnfinite/icm-ops
 ```
 
-As observed on 2026-09-08, the `skills` CLI puts a canonical copy in `.agents/skills/` and symlinks it into each detected agent's folder (`.claude/skills/` for Claude Code); `-g` installs at user level. It may change; the copy route will not.
+As observed on 2026-09-08, the `skills` CLI puts a canonical copy in `.agents/skills/` and symlinks it into each detected agent's folder (`.claude/skills/` for Claude Code); `-g` installs at user level. As observed on 2026-11-04, it also picks up a fourth skill, `icm-gates` from `plugins/icm-gates/`, which does nothing without the icm-gates mod and an `icm-gates.json` (below). It may change; the copy route will not.
 
 ```
 /plugin marketplace add xnfinite/icm-ops
@@ -138,7 +140,7 @@ nothing in the core:
 /plugin install icm-gates@icm-ops
 ```
 
-Read what it does before you trust it, as with any mod:
+Read what a mod does before you trust it. For the checker mod, from the repository root:
 
 ```bash
 claude plugin validate .
@@ -146,15 +148,19 @@ claude plugin validate .
 
 The `hooks:` and `calls:` lines name every event it handles and everything it
 asks the harness to do: `tool.call` on Write, Edit and NotebookEdit, calling
-`$.fs.exists`, `$.process.run`, `$.ui.toast` and `$.ui.status`. A mod runs with
-your permissions and is not sandboxed.
+`$.fs.exists`, `$.process.run`, `$.state.get`, `$.state.set` and `$.ui.status`.
+`claude plugin validate plugins/<name>` does the same for each of the other three.
+A mod runs with your permissions and is not sandboxed.
 
 Then run the checker on your workspace once, so you know where you stand:
 
 ```bash
 python3 .claude/skills/icm-maintain/scripts/icm_check.py .      # project install
 python3 ~/.claude/skills/icm-maintain/scripts/icm_check.py .    # user-level install
+python3 ~/.claude/plugins/cache/icm-ops/icm-ops/0.3.0/skills/icm-maintain/scripts/icm_check.py .   # plugin route
 ```
+
+The plugin-route path is where Claude Code put it as observed on 2026-11-04; the version folder follows the installed version.
 
 ## What it looks like when it is working
 
@@ -202,7 +208,7 @@ Container work that never hit disk. The short-circuited check that printed a cle
 ![icm_check.py naming the five seeded defects in example-broken](assets/icm-check.svg)
 
 ```
-$ python skills/icm-maintain/scripts/icm_check.py example-broken --today 2026-09-08
+$ python3 skills/icm-maintain/scripts/icm_check.py example-broken --today 2026-09-08
 [FAIL] broken relative link in 04-memory/STATE.md: (../02-processes/does-not-exist.md)
 [FAIL] 04-memory/STATE.md: 258 lines — OVER its binding budget of 250. Run the compaction routine.
 [FAIL] BRIEFING.md (readout: 2026-08-01) is OLDER than the newest ledger readout (2026-09-08) — regenerate it and the front-desk block
@@ -237,9 +243,9 @@ Counted from that operator's ledger on 2026-09-08; the ledger itself is private.
 ```bash
 git clone https://github.com/xnfinite/icm-ops
 cd icm-ops
-python scripts/test.py                                                              # spec-valid skills, both examples, the banned-phrase sweep
-python skills/icm-maintain/scripts/icm_check.py example --today 2026-09-08          # 0 FAIL
-python skills/icm-maintain/scripts/icm_check.py example-broken --today 2026-09-08   # names the five seeded defects
+python3 scripts/test.py                                                             # spec-valid skills, both examples, the banned-phrase sweep
+python3 skills/icm-maintain/scripts/icm_check.py example --today 2026-09-08         # 0 FAIL
+python3 skills/icm-maintain/scripts/icm_check.py example-broken --today 2026-09-08  # names the five seeded defects
 ```
 
 `example/` is a complete minimal workspace: front desk, catalog, conventions, state, one decision, a six-entry ledger with a readout, a briefing, a maintenance log. Copy it to start, or point the checker at the workspace you already have. `--today` pins the clock to the fixtures' date; drop it to watch the checker judge them against today.
