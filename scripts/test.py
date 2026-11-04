@@ -79,6 +79,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CHECKER = ROOT / "skills" / "icm-maintain" / "scripts" / "icm_check.py"
@@ -693,7 +694,8 @@ def test_robustness():
                  "\nPrice 19 (checked: 2026-09-01 on the invoice). Fee 5 (checked: 2020-01-01 · vendor page"
                  " · stale after: 30 days).\n"
                  "\n- Seats: 40 (checked: 2026-09-01, by hand)\n- Rent 7 (checked: 2020-02-01 · lease"
-                 " · stale after: 30 days)\n")
+                 " · stale after: 30 days)\n"
+                 "\nTax 3 (checked: 2020-03-01 · rate card, re-checked: by phone · stale after: 30 days)\n")
 
     robust(19, "a checked: with no window just before a stamp", stamps_in_a_row,
            lambda code, out: [
@@ -701,6 +703,8 @@ def test_robustness():
                 "a stale stamp on the same line as an earlier checked: is still read"),
                ("STALE ANCHOR in 04-memory/STATE.md: checked 2020-02-01" in out and "malformed date" not in out,
                 "a stale stamp on the bullet after one is still read, and the earlier one is no malformed date"),
+               ("STALE ANCHOR in 04-memory/STATE.md: checked 2020-03-01" in out,
+                "a re-checked: inside a stamp's source does not cut the stamp off"),
            ])
 
     robust(20, "a D-entry past KNOW-BY and still open",
@@ -759,6 +763,10 @@ def test_lease():
         check(code == 0 and out.startswith("renewed") and after["who"] == "Docs" and after["why"] == "build 80"
               and after["expires"] >= before["expires"] and after["since"] == before["since"],
               "lease: the holder's own auto-claim renews, keeps the name and reason, never shortens")
+        code, out = run_lease(d, "take", "editor", "--who", "Docs 2", "--why", "build 80", session="sess-a")
+        check(code == 0 and out.startswith("renewed") and held("editor")["who"] == "Docs 2",
+              "lease: a renewal with a new --who takes that name")
+        run_lease(d, "take", "editor", "--who", "Docs", "--why", "build 80", session="sess-a")
         check(run_lease(d, "release", "editor", session="sess-b")[0] == 1,
               "lease: another session cannot release it")
         check(run_lease(d, "release", "editor", session="sess-a")[0] == 0 and run_lease(d, "check", "editor")[0] == 0,
@@ -788,6 +796,7 @@ def test_lease():
         check(codes.count(0) == 1 and codes.count(1) == 7,
               f"lease: eight sessions taking at once, exactly one wins (exit codes {sorted(codes)})")
     test_lease_interleavings()
+    test_lease_locks()
     test_lease_documented_lines()
     with tempfile.TemporaryDirectory(prefix="icm-ops-lease-home-") as d:
         base = pathlib.Path(d)
@@ -861,6 +870,57 @@ def test_lease_interleavings():
         check(codes == [0, 0] and holder == "sess-b",
               f"lease: a release never removes the lease another session took meanwhile "
               f"(exit codes A, B: {codes}; on file: {holder})")
+        codes, holder = weave(mine, "take", "gpu", "--why", "a")
+        check(codes is not None and codes.count(0) == 1 and holder == ("sess-a", "sess-b")[codes.index(0)],
+              f"lease: a holder renewing its expired lease while another session takes it leaves one holder, "
+              f"the one on file (exit codes A, B: {codes}; on file: {holder})")
+
+
+# A lease.py run in-process with its lock wait cut to 1 s, so a lock that never goes is quick to test.
+SHORT_WAIT = r'''
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("lease", sys.argv[1])
+lease = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(lease)
+lease.LOCK_WAIT = 1
+sys.exit(lease.main(sys.argv[2:]))
+'''
+
+
+def test_lease_locks():
+    with tempfile.TemporaryDirectory(prefix="icm-ops-lease-lock-") as d:
+        leases = pathlib.Path(d) / "leases"
+        leases.mkdir()
+        env = dict(os.environ, ICM_LEASE_DIR=str(leases), CLAUDE_CODE_SESSION_ID="sess-a")
+        old = json.dumps({"who": "Gone", "why": "crashed", "since": 0, "expires": 1, "session": "sess-old"})
+        (leases / "gpu.json").write_text(old, encoding="utf-8")
+        lock = leases / "gpu.json.lock"
+        lock.write_text("", encoding="utf-8")
+        hour_ago = time.time() - 3600
+        os.utime(str(lock), (hour_ago, hour_ago))
+        try:
+            r = subprocess.run([sys.executable, str(LEASE), "take", "gpu", "--why", "a"],
+                               capture_output=True, text=True, env=env, timeout=20)
+            ok = r.returncode == 0 and r.stdout.strip().splitlines()[-1].startswith("took gpu") and not lock.exists()
+        except subprocess.TimeoutExpired:
+            ok = False
+        check(ok, "lease: a change lock left by a dead process is removed, and the take goes ahead")
+        (leases / "gpu.json").write_text(old, encoding="utf-8")
+        if lock.is_file():
+            lock.unlink()  # left by the case above when it failed
+        lock.mkdir()  # a lock that cannot be removed
+        os.utime(str(lock), (hour_ago, hour_ago))
+        harness = pathlib.Path(d) / "short_wait.py"
+        harness.write_text(SHORT_WAIT, encoding="utf-8")
+        try:
+            r = subprocess.run([sys.executable, "-I", str(harness), str(LEASE), "take", "gpu", "--why", "a"],
+                               capture_output=True, text=True, env=env, timeout=20)
+            ok = (r.returncode == 1 and "could not lock gpu" in r.stderr
+                  and (leases / "gpu.json").read_text(encoding="utf-8") == old)
+        except subprocess.TimeoutExpired:
+            ok = False
+        check(ok, "lease: a lock that cannot be removed ends in exit 1 and a message, the lease untouched, "
+                  "never an endless wait")
 
 
 def test_lease_documented_lines():

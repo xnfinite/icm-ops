@@ -8,7 +8,7 @@ function world(on: any, opts: World = {}) {
   if (opts.config !== null && opts.config !== undefined) files['/ws/icm-gates.json'] = JSON.stringify(opts.config)
   const store = new Map<string, unknown>()
   const seen = { runs: [] as string[][], installs: 0 }
-  const key = (p: string) => String(p).replace(/\\/g, '/')
+  const key = (p: string) => String(p).replace(/\\/g, '/').replace(/^[A-Za-z]:/, '') // a drive letter is ignored, should the harness add one on Windows
   mock.env(on, {})
   on('session.cwd', () => ({ value: '/ws' }))
   on('fs.exists', ($: any, e: any) => ({ value: key(e.path) in files }))

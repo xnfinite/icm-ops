@@ -42,6 +42,15 @@ test('a hedge in another sentence does not excuse an unhedged absolute', async (
   expect(notes[0]).toMatch(/you wrote "There are no"/)
 })
 
+test('a sentence carries on past "i.e." and "e.g.", so its hedge still covers it', async ($, on) => {
+  const notes = await reply(
+    $,
+    world(on),
+    'The cache may be stale here, i.e. there is no fresh copy on disk yet, e.g. after a rebuild.',
+  )
+  expect(notes).toEqual([])
+})
+
 test('an absolute after a tool call that turn passes', async ($, on) => {
   const session = world(on)
   on('tool.call', () => ({ result: {}, text: '0 files' }))

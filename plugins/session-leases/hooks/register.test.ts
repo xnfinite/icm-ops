@@ -122,7 +122,7 @@ test('the machine rules come from <profile>/.icm-leases, never from AppData', as
   const calls = world(on, { opened, config: { rules: [{ resource: 'editor', command: '\\bbuild-editor\\b', mode: 'hold', minutes: 45 }] } })
   on('tool.call', () => ({ result: {}, text: 'ok' }))
   await $.tool.call({ tool: 'Bash', command: 'build-editor --project 80' } as any)
-  expect(opened.map(p => p.replace(/\\/g, '/'))).toContain('/Users/u/.icm-leases/config.json')
+  expect(opened.map(p => p.replace(/\\/g, '/').replace(/^[A-Za-z]:/, ''))).toContain('/Users/u/.icm-leases/config.json')
   expect(opened.some(p => /AppData/i.test(p))).toBe(false)
   expect(takes(calls)[0]).toContain('editor')
 })

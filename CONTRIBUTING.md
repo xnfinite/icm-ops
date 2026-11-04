@@ -1,7 +1,7 @@
 # Contributing to icm-ops
 
-icm-ops is three skills, one checker, a lease tool, four Claude Code mods,
-two example trees and a test suite, all plain files. Changes are welcome inside that scope. This file says how
+icm-ops is three skills, one checker, two example trees and a test suite,
+all plain files. Changes are welcome inside that scope. This file says how
 to run the tests, what is out of scope, the house rules the suite enforces,
 how formats change, how versions move, how to add a scar, and what happens
 if the maintainer goes quiet.

@@ -13,25 +13,32 @@ ahead of shipping.
 - **The checker mod ran in no install.** `hooks/register.ts` looked for `icm_check.py`
   inside the workspace; the plugin route puts it inside the plugin. It now runs the
   plugin's own copy, records the FAILs a workspace already has before a session's first
-  write there (so that write is not told it introduced them), and its "Full detail" hint
-  names the interpreter and checker path that ran. Tests: `hooks/register.test.ts`.
+  write there (so that write is not told it introduced them; tried once per workspace),
+  still checks the write that creates `00-catalog/`, and its "Full detail" hint names
+  the interpreter and checker path that ran, quoted where a path holds a space. Tests:
+  `hooks/register.test.ts`.
 - **lease.py: two sessions could each be told they hold one resource.** Breaking an
   expired lease, renewing and releasing read the lease file and then changed whatever
   was at that path; a session arriving in between could have its fresh lease moved to
   `stale/` or deleted. Those three now hold a short `<resource>.json.lock` between the
-  read and the change. The name `config` is refused (it is the mod's machine
-  `config.json`). The documented `take` and `release` lines carry `--who`, which they
+  read and the change; a lock older than 10 s is removed as left by a dead process, and
+  one that cannot be had in 30 s ends in exit 1. The name `config` is refused (it is the
+  mod's machine `config.json`). `FORMAT.md`, Leases, says so. The documented `take` and `release` lines carry `--who`, which they
   need outside a session.
 - **session-leases** released no lease whose take first broke an expired one (the
   `took` line is second), and took none for a `git push` on its own line of a
   multi-line command.
-- **probe-first**: a hedge excuses its own sentence, not an absolute in another one.
+- **probe-first**: a hedge excuses its own sentence, not an absolute in another one
+  (a sentence carries on past "e.g." and "i.e.").
 - **The checker**: a file in `log_dir` whose name is not a real date no longer stands in
   for the newest log (it hid a future-dated log and the truncation guard on the real
-  one); a `checked:` with no window no longer hides the stamp after it; a D-entry past
+  one); a `checked:` with no window no longer hides the stamp after it (a `re-checked:`
+  inside a stamp's source does not cut it off); a D-entry past
   KNOW-BY is told to go to the owner, not to be marked EXPIRED.
-- **Tests:** the mod tests used Windows drive paths and failed on Linux and macOS; they
-  now pass on all three. The banned-phrase sweep covers `hooks/`, `plugins/` and `types/`.
+- **Tests:** the mod tests used Windows drive paths and failed on Linux (10 of 12 for
+  icm-gates, 1 of 12 for session-leases); with root-anchored paths they pass on Linux.
+  macOS and Windows were not run. The banned-phrase sweep covers `hooks/`, `plugins/`
+  and `types/`.
 - **Docs:** the copy-install commands clone first and create the target folder; the
   README names the checker's path under the plugin route, uses `python3` where it says
   to, lists the calls `claude plugin validate .` reports, and says the `skills` CLI

@@ -22,8 +22,10 @@ variable, take and release need --who. Taking again with the same session or
 the same name renews; a renewal never shortens a lease and keeps the name
 already on it unless --who gives a new one. An expired lease is broken by the
 next taker and kept in stale/; breaking, renewing and releasing hold a short
-<resource>.json.lock, so the lease a session judged is the one it changes.
-Every take, renew, release and break goes to history.log.
+<resource>.json.lock, so the lease a session judged is the one it changes (a
+lock older than 10 s was left by a process that died and is removed). The
+name "config" is refused: config.json in the folder is the mod's machine
+config. Every take, renew, release and break goes to history.log.
 
 Leases live on this machine only, outside any synced folder, in one folder
 every process of the user sees: ICM_LEASE_DIR if set, else
@@ -51,6 +53,7 @@ RESOURCE = re.compile(r"[a-z0-9][a-z0-9-]{0,47}")
 RESERVED = ("config",)  # config.json in the lease folder is the mod's machine config, not a lease
 MAX_MINUTES = 12 * 60
 LOCK_STALE = 10  # seconds: a change lock older than this was left by a process that died holding it
+LOCK_WAIT = 3 * LOCK_STALE  # seconds to wait for a change lock before giving up (exit 1)
 
 
 def lease_dir():
@@ -116,6 +119,7 @@ class Locked:
         self.path = p.with_name(p.name + ".lock")
 
     def __enter__(self):
+        deadline = time.time() + LOCK_WAIT
         while True:
             try:
                 os.close(os.open(str(self.path), os.O_CREAT | os.O_EXCL | os.O_WRONLY))
@@ -123,11 +127,17 @@ class Locked:
             except FileExistsError:
                 pass
             try:
-                if time.time() - self.path.stat().st_mtime > LOCK_STALE:
-                    self.path.unlink()  # its holder died between taking and dropping it
-                    continue
+                seen = self.path.stat()
+                if time.time() - seen.st_mtime > LOCK_STALE:
+                    # Its holder died between taking and dropping it. Look again just before
+                    # removing it, so a lock another waiter has just made is left alone.
+                    now = self.path.stat()
+                    if (now.st_ino, now.st_mtime) == (seen.st_ino, seen.st_mtime):
+                        self.path.unlink()
             except OSError:
-                continue  # dropped meanwhile: try again
+                pass  # dropped meanwhile, or it cannot be removed: wait, then try again
+            if time.time() > deadline:
+                raise TimeoutError(str(self.path))
             time.sleep(0.01)
 
     def __exit__(self, *exc):
@@ -261,7 +271,12 @@ def main(argv=None):
             a.who = "session " + a.session[:8]
     root = lease_dir()
     root.mkdir(parents=True, exist_ok=True)
-    return {"take": take, "release": release, "check": check, "list": list_all}[a.cmd](root, a)
+    try:
+        return {"take": take, "release": release, "check": check, "list": list_all}[a.cmd](root, a)
+    except TimeoutError as e:
+        print("could not lock %s: %s is still there after %d s; remove it if no lease.py is running"
+              % (a.resource, e, LOCK_WAIT), file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

@@ -90,12 +90,19 @@ async function failsOf($: any, root: string): Promise<{ py: string; script: stri
   return { py, script, fails: (JSON.parse(stdout.trim()) as Check).fail }
 }
 
+/** Workspaces whose baseline was tried: a checker that gives no result is tried once, not before every write. */
+const baselined = new Set<string>()
+
 /** Before a session's first write to a workspace, record the FAILs it inherited, silently. */
 async function baseline($: any, root: string): Promise<void> {
-  if ((await read($, seen))[root] !== undefined) return
+  if (baselined.has(root) || (await read($, seen))[root] !== undefined) return
+  baselined.add(root)
   const r = await failsOf($, root)
   if (r) await update($, seen, s => ({ ...s, [root]: r.fails }))
 }
+
+/** One argument of a command line a person or agent can paste: quoted when it holds a space. */
+const arg = (s: string) => (/\s/.test(s) ? `"${s}"` : s)
 
 async function checkWorkspace($: any, root: string): Promise<string | null> {
   const r = await failsOf($, root)
@@ -114,7 +121,7 @@ async function checkWorkspace($: any, root: string): Promise<string | null> {
       'icm-ops: this write FAILS the workspace checker.\n' +
       introduced.map(f => '- ' + f).join('\n') +
       '\nFix it now — it is cheaper than the compaction it becomes. ' +
-      'Full detail: ' + r.py + ' ' + r.script + ' ' + root
+      'Full detail: ' + [r.py, r.script, root].map(arg).join(' ')
     )
   }
   if (cleared.length > 0 && now.length === 0) return 'icm-ops: workspace checker is clear, 0 FAIL.'
@@ -127,14 +134,17 @@ export const register: Register = on => {
       const file: unknown = (e as any).file_path ?? (e as any).notebook_path
       if (typeof file !== 'string' || file.length === 0) return next(e)
 
-      const root = await workspaceOf($, file.replace(/\\/g, '/')).catch(() => null)
+      const path = file.replace(/\\/g, '/')
+      const found = await workspaceOf($, path).catch(() => null)
       // The FAILs the workspace already had, so this write is not blamed for them.
-      if (root) await baseline($, root).catch(() => undefined)
+      if (found) await baseline($, found).catch(() => undefined)
 
       const ran = await next(e)
       if (ran.deny !== undefined || ran.isError === true) return ran
 
       try {
+        // A write can create the workspace itself (its 00-catalog/), so look again after it.
+        const root = found ?? (await workspaceOf($, path))
         const note = root ? await checkWorkspace($, root) : null
         // `context` is read by the model after the tool's result and never shown to
         // the person — the agent is the one who writes here, so the agent is told.

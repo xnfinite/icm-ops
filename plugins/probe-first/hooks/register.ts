@@ -71,7 +71,8 @@ export const register: Register = on => {
 
       // A hedge excuses its own sentence, not an absolute in another one.
       let hit: RegExpExecArray | null = null
-      for (const sentence of text.split(/(?<=[.!?])\s+|\n+/)) {
+      // A sentence ends at . ! or ?, but not after the abbreviations a hedged sentence carries on with.
+      for (const sentence of text.split(/(?<=[.!?])(?<!\b(?:e\.g|i\.e|etc|vs|cf)\.)\s+|\n+/i)) {
         hit = HEDGED.test(sentence) ? null : ABSOLUTE.exec(sentence)
         if (hit) break
       }

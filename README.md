@@ -8,7 +8,7 @@ Written to the Agent Skills format, which Claude Code, Codex, Cursor, Gemini CLI
 
 ## Install
 
-The route that needs no CLI and no account: get the repository once, then copy the three folders under `skills/` into wherever your agent reads skills. Use one of the three copy lines; `mkdir -p` creates the folder when it is not there yet.
+The route that needs nothing beyond git and a file copy — no package manager, no account: get the repository once, then copy the three folders under `skills/` into wherever your agent reads skills. Use one of the three copy lines; `mkdir -p` creates the folder when it is not there yet.
 
 ```bash
 git clone https://github.com/xnfinite/icm-ops && cd icm-ops

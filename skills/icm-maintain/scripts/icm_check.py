@@ -685,8 +685,10 @@ def run(root, cfg, today):
     # "checked: YYYY-MM-DD · source · stale after: N days". A blown window
     # means the number describes the past while reading as the present.
     # A line break may sit inside the stamp; a blank line (LF or CRLF) may not.
-    # Nor may one stamp's stretch run into the next stamp's `checked:`.
-    stamp = re.compile(r"checked:[ \t]*(\S+)(?:(?!checked:)[^\r\n]|\r?\n(?!\r?\n)){0,120}?stale after:\s*(\d+)\s*day")
+    # Nor may one stamp's stretch run into the next stamp's `checked:` (a word of its own, so a
+    # "re-checked:" inside a stamp's source does not count).
+    stamp = re.compile(r"checked:[ \t]*(\S+)(?:(?!(?<![\w-])checked:)[^\r\n]|\r?\n(?!\r?\n)){0,120}?"
+                       r"stale after:\s*(\d+)\s*day")
     for f in files:
         rel = rels[f]
         if is_historical(rel):
