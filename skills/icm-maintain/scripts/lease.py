@@ -54,6 +54,9 @@ RESERVED = ("config",)  # config.json in the lease folder is the mod's machine c
 MAX_MINUTES = 12 * 60
 LOCK_STALE = 10  # seconds: a change lock older than this was left by a process that died holding it
 LOCK_WAIT = 3 * LOCK_STALE  # seconds to wait for a change lock before giving up (exit 1)
+# On Windows an exclusive create raises PermissionError, not FileExistsError, when the name is a
+# directory or a file another process is still deleting; both mean "there, or going: look again".
+WINDOWS = os.name == "nt"
 
 
 def lease_dir():
@@ -126,6 +129,9 @@ class Locked:
                 return self
             except FileExistsError:
                 pass
+            except PermissionError:
+                if not WINDOWS:
+                    raise
             try:
                 seen = self.path.stat()
                 if time.time() - seen.st_mtime > LOCK_STALE:
@@ -172,6 +178,9 @@ def take(root, a):
             return 0
         except FileExistsError:
             pass
+        except PermissionError:
+            if not WINDOWS:
+                raise
         with Locked(p):  # the lease read here is the lease changed below
             cur = read(p)
             if cur is None:  # mid-write by another session, or damaged: look again before judging

@@ -22,8 +22,10 @@ ahead of shipping.
   was at that path; a session arriving in between could have its fresh lease moved to
   `stale/` or deleted. Those three now hold a short `<resource>.json.lock` between the
   read and the change; a lock older than 10 s is removed as left by a dead process, and
-  one that cannot be had in 30 s ends in exit 1. The name `config` is refused (it is the
-  mod's machine `config.json`). `FORMAT.md`, Leases, says so. The documented `take` and `release` lines carry `--who`, which they
+  one that cannot be had in 30 s ends in exit 1. On Windows, an exclusive create refused
+  with PermissionError (a lock being dropped, a lease being released, a folder in the way)
+  is looked at again instead of ending in a traceback. The name `config` is refused (it is
+  the mod's machine `config.json`). `FORMAT.md`, Leases, says so. The documented `take` and `release` lines carry `--who`, which they
   need outside a session.
 - **session-leases** released no lease whose take first broke an expired one (the
   `took` line is second), and took none for a `git push` on its own line of a

@@ -887,6 +887,27 @@ sys.exit(lease.main(sys.argv[2:]))
 '''
 
 
+# lease.py as Windows runs it: an exclusive create of the lock or of the lease file is refused with
+# PermissionError, as CreateFile refuses a name that is a folder or a file still being deleted.
+WINDOWS_DENIALS = r'''
+import importlib.util, os, sys
+spec = importlib.util.spec_from_file_location("lease", sys.argv[1])
+lease = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(lease)
+lease.WINDOWS = True
+left = {".lock": int(sys.argv[2]), ".json": int(sys.argv[3])}
+real_open = os.open
+def denying_open(path, flags, *rest):
+    for end in left:
+        if str(path).endswith(end) and flags & os.O_EXCL and left[end] > 0:
+            left[end] -= 1
+            raise PermissionError(13, "Access is denied", str(path))
+    return real_open(path, flags, *rest)
+os.open = denying_open
+sys.exit(lease.main(sys.argv[4:]))
+'''
+
+
 def test_lease_locks():
     with tempfile.TemporaryDirectory(prefix="icm-ops-lease-lock-") as d:
         leases = pathlib.Path(d) / "leases"
@@ -912,15 +933,35 @@ def test_lease_locks():
         os.utime(str(lock), (hour_ago, hour_ago))
         harness = pathlib.Path(d) / "short_wait.py"
         harness.write_text(SHORT_WAIT, encoding="utf-8")
+        why = ""
         try:
             r = subprocess.run([sys.executable, "-I", str(harness), str(LEASE), "take", "gpu", "--why", "a"],
                                capture_output=True, text=True, env=env, timeout=20)
             ok = (r.returncode == 1 and "could not lock gpu" in r.stderr
                   and (leases / "gpu.json").read_text(encoding="utf-8") == old)
+            why = "" if ok else " (exit %d: %s)" % (r.returncode, (r.stderr.strip().splitlines() or [""])[-1][:160])
         except subprocess.TimeoutExpired:
-            ok = False
+            ok, why = False, " (still waiting after 20 s)"
         check(ok, "lease: a lock that cannot be removed ends in exit 1 and a message, the lease untouched, "
-                  "never an endless wait")
+                  "never an endless wait" + why)
+        for name, lock_denials, lease_denials, seed in (
+                ("the change lock", 3, 0, old),  # its holder is dropping it, or it is a folder
+                ("the lease file", 0, 1, None)):  # a release is deleting it as this take arrives
+            for p in leases.glob("gpu.json*"):
+                if p.is_dir():
+                    p.rmdir()
+                else:
+                    p.unlink()
+            if seed:
+                (leases / "gpu.json").write_text(seed, encoding="utf-8")
+            harness = pathlib.Path(d) / "windows_denials.py"
+            harness.write_text(WINDOWS_DENIALS, encoding="utf-8")
+            r = subprocess.run([sys.executable, "-I", str(harness), str(LEASE), str(lock_denials), str(lease_denials),
+                                "take", "gpu", "--why", "a"], capture_output=True, text=True, env=env, timeout=20)
+            out = r.stdout.strip().splitlines()
+            check(r.returncode == 0 and out and out[-1].startswith("took gpu"),
+                  f"lease: on Windows, a PermissionError creating {name} means it is there or going, so the take "
+                  f"looks again (exit {r.returncode}{': ' + r.stderr.strip().splitlines()[-1][:120] if r.stderr.strip() else ''})")
 
 
 def test_lease_documented_lines():
